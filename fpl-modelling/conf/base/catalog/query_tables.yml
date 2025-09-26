@@ -1,0 +1,22 @@
+players_with_reference_data:
+  type: pandas.SQLQueryDataSet
+  credentials: db_credentials
+  sql: |
+    SELECT 
+        p.player_id,
+        p.player_name,
+        p.now_cost,
+        p.total_points,
+        p.minutes,
+        p.goals_scored,
+        p.assists,
+        p.form,
+        p.selected_by_percent,
+        t.team_name,
+        t.team_short_name,
+        t.strength_overall_home,
+        t.strength_overall_away,
+        pos.position_name
+    FROM players p
+    LEFT JOIN teams t ON p.team_id = t.team_id
+    LEFT JOIN positions pos ON p.position_id = pos.position_id
