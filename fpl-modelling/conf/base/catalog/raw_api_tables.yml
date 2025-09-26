@@ -1,0 +1,34 @@
+# SQLite Database Tables
+# Note: All tables share the same database file but different table names
+
+db_players:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: players
+  load_args:
+    index_col: player_id
+  save_args:
+    index: false
+    if_exists: replace  # Use 'append' for incremental data
+
+db_teams:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: teams
+  load_args:
+    index_col: team_id
+  save_args:
+    index: false
+    if_exists: replace
+
+db_positions:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: positions
+  load_args:
+    index_col: position_id
+  save_args:
+    index: false
+    if_exists: replace
+
+
