@@ -1,6 +1,8 @@
 import pulp
 import numpy as np
 import pandas as pd
+import logging
+logger = logging.getLogger(__name__)
 
 class TeamOptimizer:
     def __init__(self, df, kpi_col):
@@ -259,7 +261,7 @@ class TeamOptimizer:
         print("Total Cost:", total_cost)
         print("Total Points:", total_points)
 
-        return {
+        res = {
             "squad": selected,
             "starters": starters,
             "bench": bench,
@@ -269,3 +271,5 @@ class TeamOptimizer:
             "total_cost": total_cost,
             "total_points": total_points
         }
+        logger.info(res)
+        return res
