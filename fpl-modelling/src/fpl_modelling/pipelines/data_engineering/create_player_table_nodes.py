@@ -15,6 +15,9 @@ def process_players_data(bootstrap_data: dict) -> pd.DataFrame:
         'element_type': 'position_id'
     })
     players['player_name'] = players['first_name'] + ' ' + players['second_name']
+    players['now_cost'] = players['now_cost']/10
+
+    players['points_per_game'] = players['points_per_game'].astype(float)
     return players
 
 def process_teams_data(bootstrap_data: dict) -> pd.DataFrame:

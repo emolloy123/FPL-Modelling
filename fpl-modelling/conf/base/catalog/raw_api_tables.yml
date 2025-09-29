@@ -1,7 +1,7 @@
 # SQLite Database Tables
 # Note: All tables share the same database file but different table names
 
-db_players:
+players:
   type: pandas.SQLTableDataset
   credentials: db_credentials
   table_name: players
@@ -11,7 +11,7 @@ db_players:
     index: false
     if_exists: replace  # Use 'append' for incremental data
 
-db_teams:
+teams:
   type: pandas.SQLTableDataset
   credentials: db_credentials
   table_name: teams
@@ -21,7 +21,7 @@ db_teams:
     index: false
     if_exists: replace
 
-db_positions:
+positions:
   type: pandas.SQLTableDataset
   credentials: db_credentials
   table_name: positions
@@ -31,4 +31,12 @@ db_positions:
     index: false
     if_exists: replace
 
-
+players_hist:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: players_hist
+  load_args:
+    index_col: player_id
+  save_args:
+    index: false
+    if_exists: replace

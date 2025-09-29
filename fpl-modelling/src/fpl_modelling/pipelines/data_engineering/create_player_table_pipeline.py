@@ -22,19 +22,19 @@ def create_players_table_pipeline(**kwargs) -> Pipeline:
         node(
             func=process_players_data,
             inputs=dict(bootstrap_data="raw_bootstrap_data"),
-            outputs="db_players",  # This goes to SQLite
+            outputs="players",  # This goes to SQLite
             name="process_players_data_node"
         ),
         node(
             func=process_teams_data,
             inputs=dict(bootstrap_data="raw_bootstrap_data"),
-            outputs="db_teams",  # This goes to SQLite
+            outputs="teams",  # This goes to SQLite
             name="process_teams_data_node"
         ),
         node(
             func=process_positions_data,
             inputs=dict(bootstrap_data="raw_bootstrap_data"),
-            outputs="db_positions",  # This goes to SQLite
+            outputs="positions",  # This goes to SQLite
             name="process_positions_data_node"
         )
     ])

@@ -3,8 +3,8 @@
 from kedro.framework.project import find_pipelines
 from kedro.pipeline import Pipeline
 from fpl_modelling.pipelines.data_engineering.create_player_table_pipeline import create_players_table_pipeline
-
-
+from fpl_modelling.pipelines.optimisation.pick_optimal_team_pipeline import create_pick_optimal_team_pipeline
+from fpl_modelling.pipelines.data_engineering.create_player_gw_hist_table_pipeline import create_player_gw_hist_table_pipeline
 
 def register_pipelines() -> dict[str, Pipeline]:
     """Register the project's pipelines.
@@ -14,7 +14,14 @@ def register_pipelines() -> dict[str, Pipeline]:
     """
     players_table_pipeline = create_players_table_pipeline()
 
+    pick_optimal_team_pipeline = create_pick_optimal_team_pipeline()
+
+    player_gw_hist_table_pipeline = create_player_gw_hist_table_pipeline()
+
+
 
     return {
-        "create_players_table": players_table_pipeline
+        "create_players_table": players_table_pipeline,
+        "pick_optimal_team": pick_optimal_team_pipeline,
+        "create_player_gw_hist_table": player_gw_hist_table_pipeline
     }

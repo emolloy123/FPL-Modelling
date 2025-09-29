@@ -8,6 +8,7 @@ class TeamOptimizer:
         df: DataFrame with columns:
             - now_cost: player cost
             - position: 'Goalkeeper', 'Defender', 'Midfielder', 'Forward'
+            - team: club name (needed for max 3 rule)
             - points metric (kpi_col)
             - player_name
         '''
@@ -16,6 +17,7 @@ class TeamOptimizer:
         self.points = df[kpi_col].values
         self.positions = df['position_name'].values
         self.players = df['player_name'].values
+        self.teams = df['team_id'].values
         self.n_players = len(df)
         
     def check_data_feasibility(self, budget=100):
@@ -92,11 +94,15 @@ class TeamOptimizer:
         # Squad size constraint
         prob += pulp.lpSum([x[p] for p in self.players]) == team_size
 
-        # Position constraints (full squad) 'Goalkeeper', 'Defender', 'Midfielder', 'Forward']
+        # Position constraints (full squad)
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Goalkeeper']) == 2
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Defender']) == 5
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Midfielder']) == 5
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Forward']) == 3
+
+        # Max 3 players per club
+        for t in np.unique(self.teams):
+            prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.teams[i] == t]) <= 3
 
         # Only one formation allowed
         prob += pulp.lpSum([formation_vars[f] for f in formations.keys()]) == 1
@@ -106,7 +112,7 @@ class TeamOptimizer:
         for p in self.players:
             prob += s[p] <= x[p]  # must be in squad to start
 
-        # Formation position constraints - THIS IS A POTENTIAL ISSUE
+        # Formation position constraints
         for pos in ['Defender', 'Midfielder', 'Forward']:
             prob += pulp.lpSum([s[self.players[i]] for i in range(self.n_players) if self.positions[i] == pos]) == \
                     pulp.lpSum([formations[f][pos] * formation_vars[f] for f in formations.keys()])
@@ -131,33 +137,21 @@ class TeamOptimizer:
         
         prob.solve(pulp.PULP_CBC_CMD(msg=debug))
 
-        # Check if solver found an optimal solution
         if pulp.LpStatus[prob.status] != "Optimal":
             print(f"❌ Solver status: {pulp.LpStatus[prob.status]}")
-            
-            if debug:
-                print("\n=== DEBUGGING INFEASIBLE SOLUTION ===")
-                # Try solving with relaxed constraints
-                self.debug_constraints(budget, team_size)
-            
             return None
 
-        # Safely choose formation
-        chosen_formations = [f for f in formations.keys() if formation_vars[f].value() == 1]
-        if not chosen_formations:
-            print("No formation chosen — solver failed to set formation variable.")
-            return None
-        chosen_formation = chosen_formations[0]
+        chosen_formation = [f for f in formations.keys() if formation_vars[f].value() == 1][0]
 
         # Output results
         selected = [p for p in self.players if x[p].value() == 1]
         starters = [p for p in self.players if s[p].value() == 1]
-        captain = [p for p in self.players if c[p].value() == 1][0] if any(c[p].value() == 1 for p in self.players) else None
-        vice_captain = [p for p in self.players if v[p].value() == 1][0] if any(v[p].value() == 1 for p in self.players) else None
+        captain = [p for p in self.players if c[p].value() == 1][0]
+        vice_captain = [p for p in self.players if v[p].value() == 1][0]
 
         total_cost = sum(self.costs[i] for i in range(self.n_players) if x[self.players[i]].value() == 1)
         total_points = sum(self.points[i] for i in range(self.n_players) if s[self.players[i]].value() == 1)
-        total_points += sum(self.points[i] for i in range(self.n_players) if c[self.players[i]].value() == 1)  # captain bonus
+        total_points += sum(self.points[i] for i in range(self.n_players) if c[self.players[i]].value() == 1)
 
         print("\n=== SOLUTION ===")
         print("Selected Squad:", selected)
@@ -177,65 +171,6 @@ class TeamOptimizer:
             "total_cost": total_cost,
             "total_points": total_points
         }
-    
-    def debug_constraints(self, budget, team_size):
-        """Try to identify which constraint is causing infeasibility"""
-        print("Testing individual constraint feasibility...")
-        
-        # Test 1: Can we select any valid squad (ignoring starting lineup)?
-        prob1 = pulp.LpProblem("Test_Squad_Only", pulp.LpMaximize)
-        x = pulp.LpVariable.dicts("squad", self.players, cat='Binary')
-        
-        prob1 += pulp.lpSum([self.points[i]*x[self.players[i]] for i in range(self.n_players)])
-        prob1 += pulp.lpSum([self.costs[i]*x[self.players[i]] for i in range(self.n_players)]) <= budget
-        prob1 += pulp.lpSum([x[p] for p in self.players]) == team_size
-        prob1 += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Goalkeeper']) == 2
-        prob1 += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Defender']) == 5
-        prob1 += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Midfielder']) == 5
-        prob1 += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Forward']) == 3
-        
-        prob1.solve(pulp.PULP_CBC_CMD(msg=0))
-        
-        if pulp.LpStatus[prob1.status] == "Optimal":
-            print("✅ Squad selection constraints are feasible")
-        else:
-            print("❌ Squad selection constraints are infeasible")
-            return
-        
-        # Test 2: Try with a simpler formation constraint
-        print("Testing with single formation (4-3-3)...")
-        prob2 = pulp.LpProblem("Test_Single_Formation", pulp.LpMaximize)
-        x = pulp.LpVariable.dicts("squad", self.players, cat='Binary')
-        s = pulp.LpVariable.dicts("start", self.players, cat='Binary')
-        
-        prob2 += pulp.lpSum([self.points[i]*s[self.players[i]] for i in range(self.n_players)])
-        prob2 += pulp.lpSum([self.costs[i]*x[self.players[i]] for i in range(self.n_players)]) <= budget
-        prob2 += pulp.lpSum([x[p] for p in self.players]) == team_size
-        
-        # Squad constraints
-        prob2 += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Goalkeeper']) == 2
-        prob2 += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Defender']) == 5
-        prob2 += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Midfielder']) == 5
-        prob2 += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Forward']) == 3
-        
-        # Starting lineup
-        prob2 += pulp.lpSum([s[p] for p in self.players]) == 11
-        for p in self.players:
-            prob2 += s[p] <= x[p]
-            
-        # Fixed formation 4-3-3
-        prob2 += pulp.lpSum([s[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Goalkeeper']) == 1
-        prob2 += pulp.lpSum([s[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Defender']) == 4
-        prob2 += pulp.lpSum([s[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Midfielder']) == 3
-        prob2 += pulp.lpSum([s[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Forward']) == 3
-        
-        prob2.solve(pulp.PULP_CBC_CMD(msg=0))
-        
-        if pulp.LpStatus[prob2.status] == "Optimal":
-            print("✅ Single formation (4-3-3) is feasible")
-            print("❌ Issue is likely with the formation variable constraints")
-        else:
-            print("❌ Even single formation is infeasible")
 
     def solve_simple(self, budget=100, formation="4-3-3"):
         """Simplified solver with fixed formation"""
@@ -274,6 +209,10 @@ class TeamOptimizer:
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Defender']) == 5
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Midfielder']) == 5
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Forward']) == 3
+
+        # Max 3 players per club
+        for t in np.unique(self.teams):
+            prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.teams[i] == t]) <= 3
 
         # Starting lineup
         prob += pulp.lpSum([s[p] for p in self.players]) == 11

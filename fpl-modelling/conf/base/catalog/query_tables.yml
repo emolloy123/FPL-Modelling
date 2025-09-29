@@ -1,22 +1,21 @@
-players_with_reference_data:
-  type: pandas.SQLQueryDataSet
+players_merged:
+  type: pandas.SQLQueryDataset
   credentials: db_credentials
   sql: |
     SELECT 
         p.player_id,
         p.player_name,
+        p.first_name,
+        p.second_name,
+        p.web_name,
         p.now_cost,
+        pos.position_name,
         p.total_points,
-        p.minutes,
-        p.goals_scored,
-        p.assists,
-        p.form,
-        p.selected_by_percent,
-        t.team_name,
-        t.team_short_name,
-        t.strength_overall_home,
-        t.strength_overall_away,
-        pos.position_name
+        p.points_per_game,
+        t.team_id,
+        p.chance_of_playing_next_round,
+        p.minutes
+        
     FROM players p
     LEFT JOIN teams t ON p.team_id = t.team_id
     LEFT JOIN positions pos ON p.position_id = pos.position_id
