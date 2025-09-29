@@ -7,7 +7,9 @@ def create_player_gw_hist_table_pipeline(**kwargs):
         [
             node(
                 func=create_player_gw_hist_table,
-                inputs=["players", "params:gameweek_history_url"],
+                inputs=dict(
+                    db_players="players"
+                    ),
                 outputs="players_hist",
                 name="create_players_gw_hist_node",
             ),

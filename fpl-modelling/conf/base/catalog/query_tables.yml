@@ -3,19 +3,56 @@ players_merged:
   credentials: db_credentials
   sql: |
     SELECT 
-        p.player_id,
-        p.player_name,
-        p.first_name,
-        p.second_name,
-        p.web_name,
-        p.now_cost,
-        pos.position_name,
-        p.total_points,
-        p.points_per_game,
-        t.team_id,
-        p.chance_of_playing_next_round,
-        p.minutes
-        
+    *
     FROM players p
     LEFT JOIN teams t ON p.team_id = t.team_id
     LEFT JOIN positions pos ON p.position_id = pos.position_id
+  
+players_hist_merged:
+  type: pandas.SQLQueryDataset
+  credentials: db_credentials
+  sql: |
+    SELECT 
+
+    ph.player_name,
+    ph.total_points AS round_points,
+    ph.opponent_team as opponent_team_id,
+    op_t.team_name AS opponent_team,   
+    ph.was_home,
+    ph.team_a_score,
+    ph.team_h_score,
+    ph.round,
+    ph.minutes AS round_minutes,
+    ph.value as transfer_cost,
+    ph.transfers_balance,
+    ph.selected,
+    ph.transfers_in,	
+    ph.transfers_out,
+    ph.player_id,
+    ph.team_id,
+    ph.position_id,
+    p.chance_of_playing_next_round,
+    p.form,
+    p.web_name,
+    p.first_name,
+    p.second_name,
+    p.now_cost,
+    p.points_per_game,
+    p.selected_by_percent,
+    p.total_points,
+    p.minutes as total_minutes,
+    t.team_name as players_team,
+    t.strength as players_team_strength,
+    t.strength_overall_home as players_team_strength_home,
+    t.strength_overall_away as players_team_strength_away,
+    op_t.strength AS opponent_team_strength,
+    op_t.strength_overall_home as opponent_team_strength_home,
+    op_t.strength_overall_away as opponent_team_strength_away,
+    pos.position_name,
+    pos.singular_name_short AS position_name_abbr
+
+    FROM players_hist ph
+    LEFT JOIN players p ON ph.player_id = p.player_id
+    LEFT JOIN teams t ON ph.team_id = t.team_id
+    LEFT JOIN positions pos ON ph.position_id = pos.position_id
+    LEFT JOIN teams op_t ON ph.opponent_team = op_t.team_id

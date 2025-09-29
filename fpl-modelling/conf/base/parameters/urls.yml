@@ -2,7 +2,8 @@
 # conf/base/parameters.yml  
 ########################################
 
-bootstrap_url: "https://fantasy.premierleague.com/api/bootstrap-static/"
-gameweek_history_url: "https://fantasy.premierleague.com/api/element-summary/{player_id}/"
-fixtures_url: "https://fantasy.premierleague.com/api/fixtures/"
+base_url: "https://fantasy.premierleague.com/api/"
+# gameweek_history_url: "https://fantasy.premierleague.com/api/element-summary/{player_id}/"
+# fixtures_url: "https://fantasy.premierleague.com/api/fixtures/"
 
+ 
