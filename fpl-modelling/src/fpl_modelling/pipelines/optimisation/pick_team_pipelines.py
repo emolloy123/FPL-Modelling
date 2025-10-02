@@ -29,5 +29,4 @@ def create_pick_most_selected_team_pipeline(**kwargs) -> Pipeline:
             outputs="most_selected_team",
             name="pick_most_selected_team_node"
         ),
-        
     ])

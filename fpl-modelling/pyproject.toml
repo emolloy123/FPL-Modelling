@@ -19,6 +19,7 @@ seaborn = "~=0.12.1"
 pulp = "*"
 numpy = ">=1.26.0"  # Pin to the highest requirement
 pandas = ">=2.0.0,<3.0.0"  # Pin pandas version range
+streamlit = "^1.50.0"
 
 
 [tool.poetry.group.dev.dependencies]

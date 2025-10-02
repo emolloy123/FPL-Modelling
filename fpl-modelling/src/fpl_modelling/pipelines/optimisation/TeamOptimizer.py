@@ -15,12 +15,14 @@ class TeamOptimizer:
             - player_name
         '''
         self.df = df
+        self.kpi_col = kpi_col
         self.costs = df['now_cost'].values
         self.points = df[kpi_col].values
         self.positions = df['position_name'].values
         self.players = df['player_name'].values
         self.teams = df['team_id'].values
         self.n_players = len(df)
+
         
     def check_data_feasibility(self, budget=100):
         """Check if the data allows for a feasible solution"""
@@ -62,21 +64,27 @@ class TeamOptimizer:
             
         return feasible
 
+    def rank_squad(self, squad_players, kpi_col):
+        """Rank players in the squad by KPI metric."""
+        squad_df = self.df[self.df['player_name'].isin(squad_players)].copy()
+        squad_df = squad_df.sort_values(by=kpi_col, ascending=False)
+        squad_df['rank'] = range(1, len(squad_df) + 1)
+        return squad_df[['player_name', kpi_col, 'position_name', 'team_id', 'rank']]
+
     def solve(self, budget=100, team_size=15, debug=True):
         if debug:
             if not self.check_data_feasibility(budget):
                 print("Data is not feasible for the given constraints!")
                 return None
-        
+
         prob = pulp.LpProblem("FPL_Team_Selection", pulp.LpMaximize)
 
         # Decision variables
-        x = pulp.LpVariable.dicts("squad", self.players, cat='Binary')       # in squad
-        s = pulp.LpVariable.dicts("start", self.players, cat='Binary')       # in starting 11
-        c = pulp.LpVariable.dicts("captain", self.players, cat='Binary')     # captain
-        v = pulp.LpVariable.dicts("vice_captain", self.players, cat='Binary')# vice-captain
+        x = pulp.LpVariable.dicts("squad", self.players, cat='Binary')
+        s = pulp.LpVariable.dicts("start", self.players, cat='Binary')
+        c = pulp.LpVariable.dicts("captain", self.players, cat='Binary')
+        v = pulp.LpVariable.dicts("vice_captain", self.players, cat='Binary')
 
-        # Formation choices
         formations = {
             "3-4-3": {"Defender": 3, "Midfielder": 4, "Forward": 3},
             "3-5-2": {"Defender": 3, "Midfielder": 5, "Forward": 2},
@@ -86,57 +94,43 @@ class TeamOptimizer:
         }
         formation_vars = pulp.LpVariable.dicts("formation", formations.keys(), cat='Binary')
 
-        # Objective: maximize expected points + captain bonus
         prob += pulp.lpSum([self.points[i]*s[self.players[i]] for i in range(self.n_players)]) + \
                 pulp.lpSum([self.points[i]*c[self.players[i]] for i in range(self.n_players)])
 
-        # Budget constraint
         prob += pulp.lpSum([self.costs[i]*x[self.players[i]] for i in range(self.n_players)]) <= budget
-
-        # Squad size constraint
         prob += pulp.lpSum([x[p] for p in self.players]) == team_size
-
-        # Position constraints (full squad)
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Goalkeeper']) == 2
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Defender']) == 5
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Midfielder']) == 5
         prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Forward']) == 3
 
-        # Max 3 players per club
         for t in np.unique(self.teams):
             prob += pulp.lpSum([x[self.players[i]] for i in range(self.n_players) if self.teams[i] == t]) <= 3
 
-        # Only one formation allowed
         prob += pulp.lpSum([formation_vars[f] for f in formations.keys()]) == 1
-
-        # Starting lineup constraints
         prob += pulp.lpSum([s[p] for p in self.players]) == 11
         for p in self.players:
-            prob += s[p] <= x[p]  # must be in squad to start
+            prob += s[p] <= x[p]
 
-        # Formation position constraints
         for pos in ['Defender', 'Midfielder', 'Forward']:
             prob += pulp.lpSum([s[self.players[i]] for i in range(self.n_players) if self.positions[i] == pos]) == \
                     pulp.lpSum([formations[f][pos] * formation_vars[f] for f in formations.keys()])
 
-        # Starting goalkeeper constraint
         prob += pulp.lpSum([s[self.players[i]] for i in range(self.n_players) if self.positions[i] == 'Goalkeeper']) == 1
 
-        # Captain constraints
         prob += pulp.lpSum([c[p] for p in self.players]) == 1
         prob += pulp.lpSum([v[p] for p in self.players]) == 1
         for p in self.players:
             prob += c[p] <= s[p]
             prob += v[p] <= s[p]
-            prob += c[p] + v[p] <= 1  # Can't be both captain and vice-captain
+            prob += c[p] + v[p] <= 1
 
-        # Solve
         if debug:
             print(f"\n=== SOLVING OPTIMIZATION ===")
             print(f"Players: {self.n_players}")
             print(f"Budget: {budget}")
             print(f"Team size: {team_size}")
-        
+
         prob.solve(pulp.PULP_CBC_CMD(msg=debug))
 
         if pulp.LpStatus[prob.status] != "Optimal":
@@ -145,7 +139,6 @@ class TeamOptimizer:
 
         chosen_formation = [f for f in formations.keys() if formation_vars[f].value() == 1][0]
 
-        # Output results
         selected = [p for p in self.players if x[p].value() == 1]
         starters = [p for p in self.players if s[p].value() == 1]
         captain = [p for p in self.players if c[p].value() == 1][0]
@@ -155,6 +148,8 @@ class TeamOptimizer:
         total_points = sum(self.points[i] for i in range(self.n_players) if s[self.players[i]].value() == 1)
         total_points += sum(self.points[i] for i in range(self.n_players) if c[self.players[i]].value() == 1)
 
+        squad_ranking = self.rank_squad(selected, self.kpi_col)
+
         print("\n=== SOLUTION ===")
         print("Selected Squad:", selected)
         print("Starters:", starters)
@@ -163,6 +158,7 @@ class TeamOptimizer:
         print("Vice Captain:", vice_captain)
         print("Total Cost:", total_cost)
         print("Total Points:", total_points)
+        print("Squd Ranking", squad_ranking)
 
         return {
             "squad": selected,
@@ -171,11 +167,13 @@ class TeamOptimizer:
             "captain": captain,
             "vice_captain": vice_captain,
             "total_cost": total_cost,
-            "total_points": total_points
+            "total_points": total_points,
+            "squad_ranking": squad_ranking
         }
 
+
     def solve_simple(self, budget=100, formation="4-3-3"):
-        """Simplified solver with fixed formation"""
+        """Simplified solver with fixed formation and squad ranking."""
         print(f"=== SOLVING WITH FIXED FORMATION: {formation} ===")
         
         formations = {
@@ -241,7 +239,6 @@ class TeamOptimizer:
             print(f"❌ Solver status: {pulp.LpStatus[prob.status]}")
             return None
 
-        # Extract results
         selected = [p for p in self.players if x[p].value() == 1]
         starters = [p for p in self.players if s[p].value() == 1]
         bench = [p for p in self.players if s[p].value() == 0]
@@ -252,6 +249,9 @@ class TeamOptimizer:
         total_points = sum(self.points[i] for i in range(self.n_players) if s[self.players[i]].value() == 1)
         total_points += sum(self.points[i] for i in range(self.n_players) if c[self.players[i]].value() == 1)
 
+        # Squad ranking by KPI
+        squad_ranking = self.rank_squad(selected, kpi_col="points")
+
         print("\n=== SOLUTION ===")
         print("Selected Squad:", selected)
         print("Starters:", starters)
@@ -260,6 +260,7 @@ class TeamOptimizer:
         print("Vice Captain:", vice_captain)
         print("Total Cost:", total_cost)
         print("Total Points:", total_points)
+        print("Squd Ranking", squad_ranking)
 
         res = {
             "squad": selected,
@@ -269,7 +270,8 @@ class TeamOptimizer:
             "captain": captain,
             "vice_captain": vice_captain,
             "total_cost": total_cost,
-            "total_points": total_points
+            "total_points": total_points,
+            "squad_ranking": squad_ranking
         }
         logger.info(res)
         return res

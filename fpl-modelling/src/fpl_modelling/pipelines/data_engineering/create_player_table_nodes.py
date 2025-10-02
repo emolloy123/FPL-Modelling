@@ -16,6 +16,7 @@ def process_players_data(client) -> pd.DataFrame:
         'team': 'team_id', 
         'element_type': 'position_id'
     })
+    
     players['player_name'] = players['first_name'] + ' ' + players['second_name']
     players['now_cost'] = players['now_cost']/10
 

@@ -40,3 +40,13 @@ players_hist:
   save_args:
     index: false
     if_exists: replace
+
+my_current_team:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: my_current_team
+  load_args:
+    index_col: player_id
+  save_args:
+    index: false
+    if_exists: replace

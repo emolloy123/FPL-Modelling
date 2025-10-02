@@ -44,3 +44,32 @@ class FPLClient:
                 fixture.pop("stats", None)  # safely remove "stats" if present
 
         return pd.json_normalize(r)
+
+    def get_team_on_gameweek(self, team_id: int, gameweek: int):
+
+        endpoint = f"{self.base_url}entry/{team_id}/event/{gameweek}/picks/"
+
+        r = requests.get(endpoint).json()   
+        
+        gameweek_team = pd.json_normalize(r['picks'])
+        gameweek_summary = r['entry_history']
+
+        return {
+            "gameweek_team": gameweek_team,
+            "gameweek_summary": gameweek_summary
+        }
+
+    def get_team_transfers(self, team_id: int):
+
+        endpoint = f"{self.base_url}entry/{team_id}/transfers/"
+
+        r = requests.get(endpoint).json()  
+
+        return pd.DataFrame(r)
+    
+    def get_current_team(self, team_id: int, bearer: str):
+
+        endpoint = f"{self.base_url}my-team/{team_id}"
+        r = requests.get(endpoint, headers={ "X-Api-Authorization": f"Bearer {bearer}"})
+
+        return r.json()
