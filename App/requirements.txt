@@ -42,7 +42,6 @@ executing==2.2.1
 fastapi==0.117.1
 fastjsonschema==2.21.2
 fonttools==4.60.0
--e git+https://github.com/emolloy123/FPL-Modelling.git@3ec6d4b0f5e8e9602c751a987a5c9fb7c500ae58#egg=fpl_modelling&subdirectory=fpl-modelling
 fqdn==1.5.1
 fsspec==2025.9.0
 gitdb==4.0.12

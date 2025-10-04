@@ -6,21 +6,25 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="FPL Optimiser", page_icon="⚽", layout="wide")
 
 # --- Title ---
-st.title("⚽ FPL Optimiser vs. Most Popular Team")
+st.title("⚽ FPL Optimiser vs. Most Selected Team vs. Average")
 st.markdown(
-    "Compare the points per gameweek of an **optimised team** vs. "
-    "the **most popular FPL team**."
+    "Compare the points per gameweek of **My Team**, "
+    "**Most Selected Team**, and the **Overall Average**."
 )
 
 # --- Example Data (replace with your real results) ---
-weeks = list(range(1, 6))
-optimised_points = [55, 62, 48, 71, 60]   # your team per GW
-popular_points = [50, 58, 52, 65, 59]     # most popular team per GW
+my_team = [45, 63, 44, 44, 39, 71]
+my_team_selection = ['random', 'random', 'random', 'random', 'random', 'optimal wild card']
+most_selected_team = [34, 61, 58, 76, 55, 45]
+average_points = [54, 51, 48, 63, 42, 46]
+
+weeks = list(range(1, len(my_team)+1))
 
 df = pd.DataFrame({
     "Gameweek": weeks,
-    "Optimised Team": optimised_points,
-    "Most Popular Team": popular_points
+    "My Team": my_team,
+    "Most Selected Team": most_selected_team,
+    "Average Points": average_points
 })
 
 # --- Plotly Line Chart ---
@@ -28,16 +32,23 @@ fig = go.Figure()
 
 fig.add_trace(go.Scatter(
     x=df["Gameweek"],
-    y=df["Optimised Team"],
+    y=df["My Team"],
     mode="lines+markers",
-    name="Optimised Team"
+    name="My Team"
 ))
 
 fig.add_trace(go.Scatter(
     x=df["Gameweek"],
-    y=df["Most Popular Team"],
+    y=df["Most Selected Team"],
     mode="lines+markers",
-    name="Most Popular Team"
+    name="Most Selected Team"
+))
+
+fig.add_trace(go.Scatter(
+    x=df["Gameweek"],
+    y=df["Average Points"],
+    mode="lines+markers",
+    name="Average Points"
 ))
 
 fig.update_layout(
@@ -51,15 +62,26 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 # --- Summary Stats ---
-st.subheader("📈 Summary")
-total_opt = df["Optimised Team"].sum()
-total_pop = df["Most Popular Team"].sum()
+st.subheader("📈 Leaderboard (Total Points)")
 
-col1, col2 = st.columns(2)
-col1.metric("Optimised Team Total", f"{total_opt} pts")
-col2.metric("Most Popular Team Total", f"{total_pop} pts")
+totals = {
+    "My Team": df["My Team"].sum(),
+    "Most Selected Team": df["Most Selected Team"].sum(),
+    "Average Points": df["Average Points"].sum()
+}
 
-if total_opt > total_pop:
-    st.success(f"🎉 Optimised team is ahead by {total_opt - total_pop} points!")
-else:
-    st.warning(f"📉 Optimised team is behind by {total_pop - total_opt} points.")
+leaderboard = (
+    pd.DataFrame(totals.items(), columns=["Team", "Total Points"])
+    .sort_values(by="Total Points", ascending=False)
+    .reset_index(drop=True)
+)
+
+# Offset index so it starts at 1
+leaderboard.index = leaderboard.index + 1
+
+st.dataframe(leaderboard, use_container_width=True)
+
+# --- Highlight Winner ---
+winner = leaderboard.iloc[0]
+st.success(f"🏆 {winner['Team']} is leading with {winner['Total Points']} points!")
+
