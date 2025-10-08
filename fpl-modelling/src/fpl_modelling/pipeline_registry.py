@@ -31,5 +31,6 @@ def register_pipelines() -> dict[str, Pipeline]:
         "pick_optimal_team": pick_optimal_team_pipeline,
         "create_player_gw_hist_table": player_gw_hist_table_pipeline,
         "pick_most_selected_team": pick_most_selected_team_pipeline,
-        "get_team": get_team_pipeline
+        "get_team": get_team_pipeline,
+        "update_tables": players_table_pipeline + player_gw_hist_table_pipeline
     }
