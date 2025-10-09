@@ -39,6 +39,7 @@ players_hist_merged:
     SELECT 
 
     ph.player_name,
+    ph.ict_index,
     ph.total_points AS round_points,
     ph.opponent_team as opponent_team_id,
     op_t.team_name AS opponent_team,   
