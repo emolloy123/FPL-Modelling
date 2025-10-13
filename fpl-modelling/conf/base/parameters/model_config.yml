@@ -1,0 +1,15 @@
+features:
+  num_features: 
+    - accumulated_minutes
+    - transfers_in
+    - ict_index
+    - selected_by_percent
+  cat_feaures:
+    - next_week_was_home
+    - players_team
+    - next_week_opponent_team
+    - position_name
+
+model:
+  class:
+  hyperparams:
