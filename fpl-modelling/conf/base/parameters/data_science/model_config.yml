@@ -1,0 +1,47 @@
+model_config:
+  4: 
+    features:
+      num_features: 
+        - accumulated_minutes
+        - transfers_in
+        - ict_index
+        - selected_by_percent
+      cat_features:
+        - next_week_was_home
+        - players_team
+        - next_week_opponent_team
+        - position_name
+
+    preprocessor:
+      steps:
+        - name: num
+          transformer: sklearn.preprocessing.RobustScaler
+          columns:
+            - accumulated_minutes
+            - transfers_in
+            - ict_index
+            - selected_by_percent
+        - name: cat
+          transformer: sklearn.preprocessing.OneHotEncoder
+          columns:
+            - next_week_was_home
+            - players_team
+            - next_week_opponent_team
+            - position_name
+
+
+    model: 
+      class: xgboost.XGBRegressor
+      hyperparams: 
+        booster: gbtree
+        colsample_bylevel: 0.8203728667728196
+        colsample_bytree: 0.922991157077929
+        gamma: 4.158210875794536
+        learning_rate: 0.006952873032336879
+        max_depth: 5
+        min_child_weight: 1
+        n_estimators: 773
+        reg_alpha: 0.008785958264239105
+        reg_lambda: 5.742011472489027e-07
+        subsample: 0.8604270021819085
+        random_state: 42

@@ -20,11 +20,18 @@ def init_transformations(players_hist_merged_orig: pd.DataFrame, shift_to_next_w
 
     return players_hist_merged_clean
 
-def expand_df(current_gameweek:int, players_hist_merged_clean:pd.DataFrame, num_forecasted_games: int, target_col:str, num_test_gameweeks: int):
+def expand_df(current_gameweek:int, players_hist_merged_clean: pd.DataFrame, num_games_to_predict: int, target_col:str, num_test_gameweeks: int):
+    """
+    Expand df to stack examples per player by gameweek
+    """
 
-    expander = ExpandingDF(current_gameweek=current_gameweek,  arg_df=players_hist_merged_clean, num_forecasted_games=num_forecasted_games,
+    expander = ExpandingDF(current_gameweek=current_gameweek,  arg_df=players_hist_merged_clean, num_games_to_predict=num_games_to_predict,
                             target_col=target_col)
     
     expanded_df = expander.expand_df()
+
+    print(expanded_df)
+
+    return expanded_df
 
     train_df, test_df = expander.gw_train_test_split(expanded_df=expanded_df, num_test_gameweeks=num_test_gameweeks)

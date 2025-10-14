@@ -1,11 +1,11 @@
 import pandas as pd 
 
 class ExpandingDF:
-    def __init__(self, current_gameweek: int,  arg_df, num_forecasted_games: int=3, target_col: str='next_week_round_points', num_test_gameweeks: int=1):
+    def __init__(self, current_gameweek: int,  arg_df, num_games_to_predict: int=3, target_col: str='next_week_round_points', num_test_gameweeks: int=1):
 
         self.current_gameweek = current_gameweek
         self.arg_df = arg_df
-        self.num_forecasted_games = num_forecasted_games
+        self.num_games_to_predict = num_games_to_predict
         self.target_col = target_col
         self.num_test_gameweeks = num_test_gameweeks
 
@@ -19,10 +19,10 @@ class ExpandingDF:
         if self.current_gameweek > max_gw_in_data:
             raise ValueError(f"current_gameweek={self.current_gameweek} is beyond max round in data ({max_gw_in_data}).")
 
-        if self.current_gameweek + self.num_forecasted_games > max_gw_in_data:
+        if self.current_gameweek + self.num_games_to_predict > max_gw_in_data:
             raise ValueError(
                 f"Not enough future gameweeks after GW{self.current_gameweek} "
-                f"to forecast {self.num_forecasted_games} games. "
+                f"to forecast {self.num_games_to_predict} games. "
                 f"Max available GW is {max_gw_in_data}."
             )
 
@@ -38,7 +38,7 @@ class ExpandingDF:
             curr_X = self.arg_df[self.arg_df['round'] == gw].copy()
 
             # Define next gameweeks to sum for target
-            next_weeks = list(range(gw + 1, gw + 1 + self.num_forecasted_games))
+            next_weeks = list(range(gw + 1, gw + 1 + self.num_games_to_predict))
 
             target_data = self.arg_df[self.arg_df['round'].isin(next_weeks)][['player_id', self.target_col]]
 
@@ -54,7 +54,8 @@ class ExpandingDF:
 
         return expanded_df
 
-    def gw_train_test_split(self, expanded_df, num_test_gameweeks = 1):
+    @staticmethod
+    def gw_train_test_split(expanded_df, num_test_gameweeks = 1):
         """
         Set the 'num_test_gameweeks' number of gameweeks as test set, setting most recent gameweeks as test
         """
