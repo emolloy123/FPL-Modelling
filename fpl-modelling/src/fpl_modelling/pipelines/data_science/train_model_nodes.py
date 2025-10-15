@@ -8,7 +8,6 @@ def load_config(model_config: tp.Dict, model_num: int):
     """
     Load model pipeline
     """
-    print(model_config, model_num)
 
     model_config = model_config[model_num]
     builder = ModelPipelineBuilder(model_config)

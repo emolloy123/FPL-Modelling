@@ -50,3 +50,8 @@ my_current_team:
   save_args:
     index: false
     if_exists: replace
+  
+fixtures:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: fixtures

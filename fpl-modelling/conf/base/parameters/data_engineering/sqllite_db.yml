@@ -2,3 +2,5 @@
 database:
   path: "data/fantasy_football.db"
   echo: false  # Set to true for SQL debugging
+
+# gameweek: 8
