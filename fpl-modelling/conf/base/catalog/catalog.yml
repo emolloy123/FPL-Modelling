@@ -3,3 +3,8 @@ expanded_df:
   filepath: data/02_intermediate/expanded_df.parquet
   save_args:
     index: False
+
+trained_pipeline:
+  type: pickle.PickleDataset
+  filepath: data/06_models/model_pipeline.pkl
+  backend: pickle

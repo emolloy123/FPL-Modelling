@@ -5,7 +5,7 @@ model_config:
         - accumulated_minutes
         - transfers_in
         - ict_index
-        - selected_by_percent
+        - selected
       cat_features:
         - next_week_was_home
         - players_team
@@ -20,7 +20,7 @@ model_config:
             - accumulated_minutes
             - transfers_in
             - ict_index
-            - selected_by_percent
+            - selected
         - name: cat
           transformer: sklearn.preprocessing.OneHotEncoder
           columns:

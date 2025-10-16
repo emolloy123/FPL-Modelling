@@ -99,18 +99,44 @@ player_info_at_gameweek:
   credentials: db_credentials
   sql: >
     SELECT 
-      ph.player_name,
-      ph.ict_index,
-      ph.transfers_in,
-      ph.selected,
-      ph.team_id,
-      ph.position_id
+        ph.player_name,
+        ph.ict_index,
+        ph.transfers_in,
+        ph.selected,
+        p.minutes AS accumulated_minutes,
+        t.team_name AS players_team,
+        pos.position_name,
+        CASE 
+            WHEN ph.team_id = f.team_h THEN 1
+            WHEN ph.team_id = f.team_a THEN 0
+        END AS next_week_was_home,
+        CASE 
+            WHEN ph.team_id = f.team_h THEN opp.team_name
+            WHEN ph.team_id = f.team_a THEN opp.team_name
+        END AS next_week_opponent_team
     FROM players_hist ph
-    WHERE ph.round = ${globals:gameweek}
-  # load_args:
-  #   params:
-  #     - ${params:gameweek}
-
+    LEFT JOIN fixtures f
+        ON f.gameweek = ${globals:gameweek}
+        AND (ph.team_id = f.team_h OR ph.team_id = f.team_a)
+    LEFT JOIN teams t
+        ON ph.team_id = t.team_id
+    LEFT JOIN positions pos
+        ON ph.position_id = pos.position_id
+    LEFT JOIN teams opp
+        ON (
+            (ph.team_id = f.team_h AND opp.team_id = f.team_a)
+            OR (ph.team_id = f.team_a AND opp.team_id = f.team_h)
+        )
+    LEFT JOIN players p 
+        ON ph.player_id = p.player_id
+    WHERE 
+        ph.round = ${globals:gameweek} - 1
+        AND (
+            p.chance_of_playing_next_round = 100
+            OR p.chance_of_playing_next_round IS NULL
+        ) AND
+        p.minutes > ${globals:minute_threshold}
+        
 
 
     

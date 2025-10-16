@@ -10,7 +10,7 @@ def create_prepare_model_data_pipeline(**kwargs) -> Pipeline:
             inputs = dict(
                 players_hist_merged_orig = "players_hist_merged",
                 shift_to_next_week_cols = "params:shift_to_next_week_cols",
-                minute_threshold = "params:minute_threshold"
+                minute_threshold = "globals:minute_threshold"
             ),
             outputs="players_hist_merged_clean",
             name="finit_transformations_node"
