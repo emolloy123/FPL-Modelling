@@ -10,7 +10,7 @@ def create_pick_optimal_team_pipeline(**kwargs) -> Pipeline:
         node(
             func=pick_optimal_team,
             inputs=dict(
-                players_df="players_merged",
+                players_df="opt_input_df",
                 objective_col = "params:objective_col"
                 ),
             outputs="optimal_team",

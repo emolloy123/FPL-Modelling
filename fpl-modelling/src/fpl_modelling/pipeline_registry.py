@@ -49,5 +49,5 @@ def register_pipelines() -> dict[str, Pipeline]:
         "prepare_model_data": prepare_model_data_pipeline, #RUNTIME PARAMS: current_gameweek
         "train_model": train_model_pipeline, #RUNTIME PARAMS: model_num
         "create_fixtures_table": fixtures_table_pipeline,
-        "gameweek_prediction": gameweek_prediction_pipeline
+        "gameweek_prediction": gameweek_prediction_pipeline + pick_optimal_team_pipeline # RUNTIME PARAMS: model_num, gameweek
     }

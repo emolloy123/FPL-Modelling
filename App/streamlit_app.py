@@ -13,10 +13,10 @@ st.markdown(
 )
 
 # --- Example Data (replace with your real results) ---
-my_team = [45, 63, 44, 44, 39, 71]
+my_team = [45, 63, 44, 44, 39, 71, 64]
 my_team_selection = ['random', 'random', 'random', 'random', 'random', 'optimal wild card']
-most_selected_team = [34, 61, 58, 76, 55, 45]
-average_points = [54, 51, 48, 63, 42, 46]
+most_selected_team = [34, 61, 58, 76, 55, 45, 64]
+average_points = [54, 51, 48, 63, 42, 46, 60]
 
 weeks = list(range(1, len(my_team)+1))
 

@@ -55,6 +55,7 @@ players_hist_merged:
         p.web_name,
         p.first_name,
         p.second_name,
+        p.now_cost,
         p.player_name,
         ph.team_id,
         t.team_name AS players_team,

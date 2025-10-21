@@ -16,7 +16,7 @@ def create_gameweek_prediction_pipeline(**kwargs) -> Pipeline:
                 model_config = "params:model_config",
                 model_num = "params:model_num"
             ),  
-            outputs="points_prediction",
+            outputs="opt_input_df",
             name="points_prediction_pipeline",
         ),
     ])

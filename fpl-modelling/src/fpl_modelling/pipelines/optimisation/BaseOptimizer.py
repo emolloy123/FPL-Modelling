@@ -1,3 +1,5 @@
+import pulp
+
 class BaseOptimizer:
     """Base class with shared functionality for FPL optimizers."""
 
