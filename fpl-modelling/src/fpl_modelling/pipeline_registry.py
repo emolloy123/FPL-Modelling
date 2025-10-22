@@ -48,6 +48,7 @@ def register_pipelines() -> dict[str, Pipeline]:
         "update_tables": players_table_pipeline + player_gw_hist_table_pipeline + fixtures_table_pipeline,
         "prepare_model_data": prepare_model_data_pipeline, #RUNTIME PARAMS: current_gameweek
         "train_model": train_model_pipeline, #RUNTIME PARAMS: model_num
+        "train_new_model": prepare_model_data_pipeline + train_model_pipeline,  #RUNTIME PARAMS: current_gameweek, model_num
         "create_fixtures_table": fixtures_table_pipeline,
         "gameweek_prediction": gameweek_prediction_pipeline + pick_optimal_team_pipeline # RUNTIME PARAMS: model_num, gameweek
     }

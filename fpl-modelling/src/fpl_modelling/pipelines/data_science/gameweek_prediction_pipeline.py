@@ -12,7 +12,7 @@ def create_gameweek_prediction_pipeline(**kwargs) -> Pipeline:
             func=points_prediction,
             inputs=dict(
                 player_info_at_gameweek = "player_info_at_gameweek",
-                trained_pipeline = "trained_pipeline",
+                # trained_pipeline = "trained_pipeline",
                 model_config = "params:model_config",
                 model_num = "params:model_num"
             ),  

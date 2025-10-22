@@ -3,6 +3,8 @@ from .ModelPipelineBuilder import ModelPipelineBuilder
 import typing as tp 
 import pandas as pd 
 import sklearn 
+import mlflow
+import mlflow.sklearn
 
 def load_config(model_config: tp.Dict, model_num: int):
     """
@@ -28,10 +30,19 @@ def train_test_split(expanded_df:pd.DataFrame, num_test_gameweeks: int):
 
 def train_model(train_df: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, features: tp.List[str], target_col: str):
 
+    mlflow.set_tracking_uri("http://127.0.0.1:5000")
+    mlflow.set_experiment("fpl_modelling")
     X = train_df[features]
     y = train_df[target_col]
 
-    pipeline.fit(X, y)
+    with mlflow.start_run(run_name="fpl_model_training") as run:
+        pipeline.fit(X, y)
+
+        model_info = mlflow.sklearn.log_model(
+            sk_model=pipeline,
+            artifact_path="model",
+            registered_model_name="fpl_model",
+        )
 
     return pipeline
     

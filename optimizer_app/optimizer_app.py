@@ -2,13 +2,15 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+
 st.set_page_config(page_title="FPL Team Optimizer", layout="wide")
 
 st.title("⚽ FPL Wildcard Team Optimizer")
 st.markdown(
     "Pick your best team for the next gameweek using **model predictions** and **optimization**. "
-    "*(Fake data for now)*"
 )
+
+# UPDATE TABLES
 
 # --- Fake player data ---
 def load_player_data():
@@ -72,3 +74,8 @@ if st.button("Generate Team (Table View)"):
 
     st.subheader("🏆 Selected Team (Table)")
     st.dataframe(team_df.style.apply(highlight_roles, axis=1))
+
+
+st.write("""IF YOU WERE TO USE OUR MODEL IN PREVIOS GAMEWEEKS HERES THE POINTS YOU WOULD HAVE GOTTEN AND COMPARE WITH MOST
+         SELECTED TEAM" \
+""")

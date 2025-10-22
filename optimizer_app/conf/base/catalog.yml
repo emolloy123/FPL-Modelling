@@ -1,37 +1,58 @@
-players_merged:
-  type: pandas.SQLQueryDataset
+# SQLite Database Tables
+# Note: All tables share the same database file but different table names
+
+players:
+  type: pandas.SQLTableDataset
   credentials: db_credentials
-  sql: |
-    SELECT 
+  table_name: players
+  load_args:
+    index_col: player_id
+  save_args:
+    index: false
+    if_exists: replace  # Use 'append' for incremental data
 
-    p.player_name,
-    p.total_points,
-    p.minutes AS total_minutes,
-    p.now_cost,
-    p.selected_by_percent,
-    p.transfers_in,	
-    p.transfers_out,
-    p.player_id,
-    p.team_id,
-    p.position_id,
-    p.chance_of_playing_next_round,
-    p.form,
-    p.web_name,
-    p.first_name,
-    p.second_name,
-    p.points_per_game,
-    t.team_name as players_team,
-    t.strength as players_team_strength,
-    t.strength_overall_home as players_team_strength_home,
-    t.strength_overall_away as players_team_strength_away,
-    pos.position_name,
-    pos.singular_name_short AS position_name_abbr
+teams:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: teams
+  load_args:
+    index_col: team_id
+  save_args:
+    index: false
+    if_exists: replace
 
-    FROM players p
-    LEFT JOIN teams t ON p.team_id = t.team_id
-    LEFT JOIN positions pos ON p.position_id = pos.position_id
+positions:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: positions
+  load_args:
+    index_col: position_id
+  save_args:
+    index: false
+    if_exists: replace
 
+players_hist:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: players_hist
+  load_args:
+    index_col: player_id
+  save_args:
+    index: false
+    if_exists: replace
   
+fixtures:
+  type: pandas.SQLTableDataset
+  credentials: db_credentials
+  table_name: fixtures
+  save_args:
+    if_exists: replace
+
+trained_pipeline:
+  type: pickle.PickleDataset
+  filepath: data/model_pipeline.pkl
+  backend: pickle
+
 players_hist_merged:
   type: pandas.SQLQueryDataset
   credentials: db_credentials
@@ -138,36 +159,3 @@ player_info_at_gameweek:
         ) AND
         p.minutes > ${globals:minute_threshold}
         
-
-
-current_team:
-  type: pandas.SQLQueryDataset
-  credentials: db_credentials
-  sql: |
-    SELECT 
-
-    ct.player_id,
-    ct.position_id,
-    ct.selling_price,
-    ct.purchase_price,
-    p.player_name,
-    p.total_points,
-    p.minutes AS total_minutes,
-    p.now_cost,
-    p.selected_by_percent,
-    p.transfers_in,	
-    p.transfers_out,
-    p.team_id,
-    p.chance_of_playing_next_round,
-    p.form,
-    p.web_name,
-    p.first_name,
-    p.second_name,
-    p.points_per_game,
-    pos.position_name,
-    pos.singular_name_short AS position_name_abbr,
-
-    FROM my_current_team ct
-    LEFT JOIN players p ON p.player_id = ct.player_id
-    LEFT JOIN positions pos ON ct.position_id = pos.position_id
- 

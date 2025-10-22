@@ -1,38 +1,48 @@
-[tool.poetry]
+[project]
 name = "fpl_modelling"
 version = "0.1.0"
-description = "FPL Modelling Project using Kedro and Poetry"
-authors = ["Eoin Molloy <you@example.com>"]
+description = "FPL Modelling Project using Kedro and uv"
+authors = [
+    { name = "Eoin Molloy", email = "you@example.com" }
+]
 readme = "README.md"
-packages = [{ include = "src/fpl_modelling" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "ipython>=8.10",
+    "jupyterlab>=3.0",
+    "notebook",
+    "kedro[jupyter]~=1.0.0",
+    "kedro-datasets[sql,pandas]>=8.1.0,<9.0.0",
+    "kedro-viz>=6.7.0",
+    "scikit-learn>=1.7.2",
+    "seaborn~=0.12.1",
+    "pulp",
+    "numpy>=1.26.0",
+    "pandas>=2.0.0,<3.0.0",
+    "streamlit>=1.50.0,<2.0.0",
+    "xgboost>=3.0.5,<4.0.0",
+    "mlflow>=3.5.1",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.13"
-ipython = ">=8.10"
-jupyterlab = ">=3.0"
-notebook = "*"
-kedro = {extras=["jupyter"], version="~1.0.0"}
-kedro-datasets = {extras = ["sql", "pandas"], version = "^8.1.0"}
-kedro-viz = ">=6.7.0"
-scikit-learn = "~=1.5.1"
-seaborn = "~=0.12.1"
-pulp = "*"
-numpy = ">=1.26.0"  # Pin to the highest requirement
-pandas = ">=2.0.0,<3.0.0"  # Pin pandas version range
-streamlit = "^1.50.0"
-xgboost = "^3.0.5"
+[project.optional-dependencies]
+dev = [
+    "pytest-cov~=3.0",
+    "pytest-mock>=1.7.1,<2.0",
+    "pytest~=7.2",
+    "ruff~=0.12.0",
+    "black",
+    "isort",
+]
 
-
-[tool.poetry.group.dev.dependencies]
-pytest-cov = "~3.0"
-pytest-mock = ">=1.7.1,<2.0"
-pytest = "~7.2"
-ruff = "~0.12.0"
-black = "*"
-isort = "*"
-
-[tool.poetry.scripts]
+[project.scripts]
 fpl-modelling = "fpl_modelling.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fpl_modelling"]
 
 [tool.kedro]
 package_name = "fpl_modelling"

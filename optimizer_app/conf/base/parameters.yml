@@ -1,4 +1,16 @@
+base_url: "https://fantasy.premierleague.com/api/"
+objective_col: points_per_game
+shift_to_next_week_cols:
+    - round_points
+    - opponent_team
+    - was_home
 
+minute_threshold: 0
+
+target_col: next_week_round_points
+
+num_games_to_predict: 1
+num_test_gameweeks: 1
 
 model_config:
   4: 

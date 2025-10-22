@@ -5,6 +5,6 @@ expanded_df:
     index: False
 
 trained_pipeline:
-  type: pickle.PickleDataset
+  type: pickle.PickleDataset  # or joblib if available
   filepath: data/06_models/model_pipeline.pkl
-  backend: pickle
+  backend: joblib  # Add this line
