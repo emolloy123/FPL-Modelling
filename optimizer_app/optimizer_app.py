@@ -1,81 +1,105 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from fpl_modelling.__main__ import run_pipeline_programmatically
 
-
-st.set_page_config(page_title="FPL Team Optimizer", layout="wide")
-
+st.set_page_config(page_title="FPL Wildcard Team Optimizer (Real Data)", layout="wide")
 st.title("⚽ FPL Wildcard Team Optimizer")
-st.markdown(
-    "Pick your best team for the next gameweek using **model predictions** and **optimization**. "
-)
+st.markdown("This app predicts a squad for the next gameweek in FPL by using machine learning to predict points in the next gameweek and choosing a team that maximisea "
+"this expected points while adhering to the rules of FPL team building")
 
-# UPDATE TABLES
-
-# --- Fake player data ---
-def load_player_data():
-    data = {
-        "player_name": [f"Player {i}" for i in range(1, 21)],
-        "team": ["Team A", "Team B", "Team C", "Team D"] * 5,
-        "position": ["GK", "DEF", "MID", "FWD"] * 5,
-        "predicted_points": np.round(np.random.uniform(2, 10, 20), 1),
-    }
-    return pd.DataFrame(data)
-
-players_df = load_player_data()
-
-# --- Fake optimization ---
-def select_best_team(df):
-    df = df.copy()
-    # starters + bench
-    starters = []
-    bench = []
-    positions = ["GK", "DEF", "MID", "FWD"]
-    n_starters = {"GK": 1, "DEF": 4, "MID": 4, "FWD": 2}
-    n_bench = {"GK": 1, "DEF": 1, "MID": 1, "FWD": 1}
-    
-    for pos in positions:
-        pos_players = df[df["position"] == pos].sample(n=n_starters[pos] + n_bench[pos])
-        starters.append(pos_players.iloc[:n_starters[pos]])
-        bench.append(pos_players.iloc[n_starters[pos]:])
-    
-    starters_df = pd.concat(starters).reset_index(drop=True)
-    bench_df = pd.concat(bench).reset_index(drop=True)
-    
-    # captain/vice-captain
-    starters_df["role"] = "Starter"
-    starters_df.loc[0, "role"] = "Captain"
-    starters_df.loc[1, "role"] = "Vice-Captain"
-    bench_df["role"] = "Bench"
-    
-    team_df = pd.concat([starters_df, bench_df]).reset_index(drop=True)
-    return team_df
-
-position_colors = {
-    "GK": "#FFD700",  # Gold
-    "DEF": "#00BFFF", # DeepSkyBlue
-    "MID": "#32CD32", # LimeGreen
-    "FWD": "#FF4500", # OrangeRed
-}
-
+# --- Embedded real `res` data (taken from the message you provided) ---
 if st.button("Generate Team (Table View)"):
-    team_df = select_best_team(players_df)
-    
-    # Highlight captain and vice-captain
-    def highlight_roles(row):
-        if row.role == "Captain":
-            return ['background-color: #FF6347']*len(row)  # Tomato
-        elif row.role == "Vice-Captain":
-            return ['background-color: #FFA500']*len(row)  # Orange
-        elif row.role == "Bench":
-            return ['background-color: #D3D3D3']*len(row)  # LightGray
-        else:
-            return ['']*len(row)
+    res = run_pipeline_programmatically(pipeline_name="gameweek_prediction", params={"current_gameweek": 8, "model_num": 4})['optimal_team'].load()
 
-    st.subheader("🏆 Selected Team (Table)")
-    st.dataframe(team_df.style.apply(highlight_roles, axis=1))
+    # Convert squad_ranking to DataFrame
+    squad_ranking_df = pd.DataFrame(res['squad_ranking'])
+
+    # Helper: build team DataFrame from res lists + ranking table (to get position)
+    all_players = squad_ranking_df.set_index('player_name').to_dict(orient='index')
+
+    rows = []
+    for p in res['squad']:
+        info = all_players.get(p, {})
+        rows.append({
+            'Player Name': p,
+            'Player Position': info.get('position_name', 'Unknown'),
+            'Team': info.get('team_id', ''),
+            'Expected Points': info.get('points_per_game', np.nan),
+            'Role': ('Captain' if p == res['captain'] else 'Vice-Captain' if p == res['vice_captain'] else ('Starter' if p in res['starters'] else 'Bench'))
+        })
+
+    team_df = pd.DataFrame(rows).sort_values(by='Expected Points', ascending=False)
+
+    team_df.loc[team_df['Role'] == 'Captain', 'Expected Points'] *= 2
 
 
-st.write("""IF YOU WERE TO USE OUR MODEL IN PREVIOS GAMEWEEKS HERES THE POINTS YOU WOULD HAVE GOTTEN AND COMPARE WITH MOST
-         SELECTED TEAM" \
-""")
+    # position colours for display
+    position_colors = {
+        'GK': '#FFD700',
+        'Goalkeeper': '#FFD700',
+        'DEF': '#00BFFF',
+        'Defender': '#00BFFF',
+        'MID': '#32CD32',
+        'Midfielder': '#32CD32',
+        'FWD': '#FF4500',
+        'Forward': '#FF4500'
+    }
+
+    # --- Layout ---
+    col1, col2 = st.columns((2, 1))
+
+    with col1:
+        st.subheader(f'🏆 Selected Squad: Expected Points = {team_df['Expected Points'].sum():.2f} ')
+
+        def highlight_roles(row):
+            if row.Role == 'Captain':
+                return ['background-color: #FFF4CC']*len(row)
+            elif row.Role == 'Vice-Captain':
+                return ['background-color: #E8F4F9']*len(row)
+            elif row.Role == 'Bench':
+                return ['background-color: #D3D3D3']*len(row)
+            else:
+                return ['']*len(row)
+            
+        team_df['Player Name'] = team_df.apply(
+            lambda x: f"🏆 {x['Player Name']}" if x['Role']=='Captain' else
+                    f"🎖️ {x['Player Name']}" if x['Role']=='Vice-Captain' else x['Player Name'], axis=1
+        )
+
+        styled = team_df.style.apply(highlight_roles, axis=1)
+        st.dataframe(styled, use_container_width=True)
+
+        # st.markdown(f"**Formation:** {res['formation']} — **Expected points:** {team_df['Expected Points'].sum():.2f}")
+        st.markdown(f"**Formation:** {res['formation']}")
+        st.markdown('### Starters / Bench')
+        st.write('**Starters:**', ', '.join(res['starters']))
+        st.write('**Bench:**', ', '.join(res['bench']))
+    with col2:
+        st.markdown("\n")
+        st.markdown("\n")
+        
+
+    # with col2:
+    #     st.subheader('📊 Squad Ranking (points per game)')
+    #     st.dataframe(squad_ranking_df.sort_values('points_per_game', ascending=False).reset_index(drop=True), use_container_width=True)
+
+    #     st.markdown('### Visual: top players by PPG')
+    #     chart_df = squad_ranking_df.sort_values('points_per_game', ascending=False).head(12)
+    #     st.bar_chart(chart_df.set_index('player_name')['points_per_game'])
+
+    # Additional: quick comparison summary (text)
+    # st.markdown('---')
+    # st.header('Model Performance Summary')
+    # st.write(f"If you had used this model in previous gameweeks, the expected points for this wildcard would be **{res['expected_points']:.2f}**.")
+
+    # Allow export of selected team to CSV
+    @st.cache_data
+    def make_export(df):
+        return df.to_csv(index=False)
+
+    csv = make_export(team_df)
+    st.download_button('Download selected squad as CSV', data=csv, file_name='selected_squad.csv', mime='text/csv')
+
+    st.markdown('---')
+

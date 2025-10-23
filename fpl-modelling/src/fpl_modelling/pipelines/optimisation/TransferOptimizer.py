@@ -109,7 +109,7 @@ class TransferOptimizer(BaseOptimizer):
             return None
 
         chosen_formation = [f for f in self.FORMATIONS.keys() if formation_vars[f].value() == 1][0]
-        result = self.extract_solution(x, s, c, v, chosen_formation)
+        result = self.extract_solution(x, s, c, chosen_formation)
         result['transferred_out'] = [p for p in self.all_players if transfer_out[p].value() == 1]
         result['transferred_in'] = [p for p in self.all_players if transfer_in[p].value() == 1]
         result['num_transfers'] = int(num_transfers.value())

@@ -95,16 +95,19 @@ class BaseOptimizer:
             self.player_info[p]['points'] * c[p] for p in self.all_players
         ])
 
-    def extract_solution(self, x, s, c, v, formation):
+    def extract_solution(self, x, s, c, formation):
         squad = [p for p in self.all_players if x[p].value() == 1]
         starters = [p for p in self.all_players if s[p].value() == 1]
         bench = [p for p in squad if p not in starters]
         captain = [p for p in self.all_players if c[p].value() == 1][0]
-        vice = [p for p in self.all_players if v[p].value() == 1][0]
+
+        # Pick vice-captain as the starter with second highest points (excluding captain)
+        starters_except_captain = [p for p in starters if p != captain]
+        vice = max(starters_except_captain, key=lambda p: self.player_info[p]['points'])
 
         total_cost = sum(self.player_info[p]['cost'] for p in squad)
         expected_points = sum(self.player_info[p]['points'] for p in starters)
-        expected_points += self.player_info[captain]['points']
+        expected_points += self.player_info[captain]['points']  # double captain points
 
         return {
             "squad": squad,

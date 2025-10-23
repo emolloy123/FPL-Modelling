@@ -4,10 +4,10 @@ version = "0.1.0"
 description = "FPL Application"
 requires-python = ">=3.10,<3.13"
 dependencies = [
-    "fpl-modelling",
     "streamlit>=1.50.0,<2.0.0",
     # Add any other app-specific dependencies here
     "scikit-learn>=1.7.2",
+    "fpl-modelling",
 ]
 
 [tool.uv.sources]

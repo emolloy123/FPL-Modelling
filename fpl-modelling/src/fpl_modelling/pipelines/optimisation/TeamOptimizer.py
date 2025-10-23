@@ -31,7 +31,7 @@ class TeamOptimizer(BaseOptimizer):
             return None
 
         chosen_formation = [f for f in self.FORMATIONS.keys() if formation_vars[f].value() == 1][0]
-        result = self.extract_solution(x, s, c, v, chosen_formation)
+        result = self.extract_solution(x, s, c,  chosen_formation)
         result['squad_ranking'] = self.rank_squad(result['squad'])
         self.print_team_solution(result)
         return result
