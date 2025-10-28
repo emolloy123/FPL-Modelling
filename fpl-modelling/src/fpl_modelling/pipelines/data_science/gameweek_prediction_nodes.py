@@ -3,13 +3,13 @@ import sklearn
 import typing as tp 
 import mlflow 
 
-def points_prediction(player_info_at_gameweek: pd.DataFrame, model_config: tp.Dict, model_num: int):
+def points_prediction(player_info_at_gameweek: pd.DataFrame, model_config: tp.Dict, model_num: int, mlflow_tracking_uri: str, mlflow_model_name: str):
     """
     Predict expected points for all players in the specified gameweek
     """
 
-    mlflow.set_tracking_uri("http://127.0.0.1:5000")
-    trained_pipeline= mlflow.sklearn.load_model("models:/fpl_model/latest")
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    trained_pipeline= mlflow.sklearn.load_model(f"models:/{mlflow_model_name}/latest")
 
     features = model_config[model_num]['features']['num_features'] + model_config[model_num]['features']['cat_features']
 

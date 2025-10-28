@@ -28,10 +28,11 @@ def train_test_split(expanded_df:pd.DataFrame, num_test_gameweeks: int):
 
     return train_df, test_df
 
-def train_model(train_df: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, features: tp.List[str], target_col: str):
+def train_model(train_df: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, features: tp.List[str], target_col: str, 
+                mlflow_tracking_uri: str, mlflow_experiment_name: str, mlflow_model_name: str):
 
-    mlflow.set_tracking_uri("http://127.0.0.1:5000")
-    mlflow.set_experiment("fpl_modelling")
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    mlflow.set_experiment(mlflow_experiment_name)
     X = train_df[features]
     y = train_df[target_col]
 
@@ -41,8 +42,9 @@ def train_model(train_df: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, fea
         model_info = mlflow.sklearn.log_model(
             sk_model=pipeline,
             artifact_path="model",
-            registered_model_name="fpl_model",
+            registered_model_name=mlflow_model_name,
         )
+
 
     return pipeline
     

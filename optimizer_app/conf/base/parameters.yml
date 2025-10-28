@@ -12,6 +12,10 @@ target_col: next_week_round_points
 num_games_to_predict: 1
 num_test_gameweeks: 1
 
+mlflow_tracking_uri: "http://127.0.0.1:5001"
+mlflow_experiment_name: fpl_modelling
+mlflow_model_name: fpl_model 
+
 model_config:
   4: 
     features:

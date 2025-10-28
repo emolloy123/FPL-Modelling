@@ -1,4 +1,6 @@
-
+mlflow_tracking_uri: "http://127.0.0.1:5001"
+mlflow_experiment_name: fpl_modelling
+mlflow_model_name: fpl_model 
 
 model_config:
   4: 

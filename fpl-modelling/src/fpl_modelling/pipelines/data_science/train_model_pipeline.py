@@ -31,7 +31,10 @@ def create_train_model_pipeline(**kwargs) -> Pipeline:
                 train_df="train_df",
                 pipeline="pipeline",
                 features="features",
-                target_col="params:target_col"
+                target_col="params:target_col",
+                mlflow_experiment_name = "params:mlflow_experiment_name",
+                mlflow_tracking_uri = "params:mlflow_tracking_uri",
+                mlflow_model_name = "params:mlflow_model_name",
             ),
             outputs="trained_pipeline",
             name="train_model_node",
