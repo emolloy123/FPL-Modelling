@@ -15,8 +15,9 @@ def create_gameweek_prediction_pipeline(**kwargs) -> Pipeline:
                 # trained_pipeline = "trained_pipeline",
                 model_config = "params:model_config",
                 model_num = "params:model_num",
-                mlflow_model_name = "params:mlflow_model_name",
+                # mlflow_model_name = "params:mlflow_model_name",
                 mlflow_tracking_uri = "params:mlflow_tracking_uri",
+                gameweek="params:gameweek"
             ),  
             outputs="opt_input_df",
             name="points_prediction_pipeline",

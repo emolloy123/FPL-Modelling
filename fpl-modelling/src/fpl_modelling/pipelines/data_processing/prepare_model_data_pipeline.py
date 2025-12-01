@@ -13,7 +13,7 @@ def create_prepare_model_data_pipeline(**kwargs) -> Pipeline:
                 minute_threshold = "params:minute_threshold"
             ),
             outputs="players_hist_merged_clean",
-            name="finit_transformations_node"
+            name="init_transformations_node"
         ),
         # Process and store reference data in SQLite
         node(

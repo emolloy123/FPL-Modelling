@@ -10,7 +10,7 @@ st.markdown("This app predicts a squad for the next gameweek in FPL by using mac
 
 # --- Embedded real `res` data (taken from the message you provided) ---
 if st.button("Generate Team (Table View)"):
-    res = run_pipeline_programmatically(pipeline_name="gameweek_prediction", params={"current_gameweek": 8, "model_num": 4})['optimal_team'].load()
+    res = run_pipeline_programmatically(pipeline_name="gameweek_prediction", params={"gameweek": 12, "model_num": 4})['optimal_team'].load()
 
     # Convert squad_ranking to DataFrame
     squad_ranking_df = pd.DataFrame(res['squad_ranking'])

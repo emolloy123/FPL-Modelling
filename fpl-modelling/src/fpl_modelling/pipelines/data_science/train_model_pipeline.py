@@ -32,9 +32,10 @@ def create_train_model_pipeline(**kwargs) -> Pipeline:
                 pipeline="pipeline",
                 features="features",
                 target_col="params:target_col",
-                mlflow_experiment_name = "params:mlflow_experiment_name",
+                # mlflow_experiment_name = "params:mlflow_experiment_name",
                 mlflow_tracking_uri = "params:mlflow_tracking_uri",
-                mlflow_model_name = "params:mlflow_model_name",
+                # mlflow_model_name = "params:mlflow_model_name",
+                current_gameweek = "params:current_gameweek"
             ),
             outputs="trained_pipeline",
             name="train_model_node",

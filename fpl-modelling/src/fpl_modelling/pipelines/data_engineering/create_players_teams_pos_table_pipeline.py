@@ -1,5 +1,5 @@
 from kedro.pipeline import Pipeline, node, pipeline
-from .create_player_table_nodes import (
+from .create_players_teams_pos_table_nodes import (
     init_api_client,
     process_players_data,
     process_teams_data,
@@ -7,7 +7,7 @@ from .create_player_table_nodes import (
 )
 
 
-def create_players_table_pipeline(**kwargs) -> Pipeline:
+def create_players_teams_pos_table_pipeline(**kwargs) -> Pipeline:
     return pipeline([
         # Fetch raw data from APIs
         node(

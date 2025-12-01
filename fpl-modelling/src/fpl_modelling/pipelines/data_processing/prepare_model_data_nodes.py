@@ -30,8 +30,5 @@ def expand_df(current_gameweek:int, players_hist_merged_clean: pd.DataFrame, num
     
     expanded_df = expander.expand_df()
 
-    print(expanded_df)
-
     return expanded_df
 
-    train_df, test_df = expander.gw_train_test_split(expanded_df=expanded_df, num_test_gameweeks=num_test_gameweeks)

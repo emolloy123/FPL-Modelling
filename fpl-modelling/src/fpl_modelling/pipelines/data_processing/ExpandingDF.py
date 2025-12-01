@@ -29,7 +29,7 @@ class ExpandingDF:
     def expand_df(self):
 
         """
-        Loop backwards from current gameweek setting target as total points equal to the 3 gameweeks after it
+        Loop backwards from current gameweek setting target as total points equal to the num_test_gameweeks gameweeks after it
         """
         Xs = []
 

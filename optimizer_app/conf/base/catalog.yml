@@ -125,6 +125,7 @@ player_info_at_gameweek:
         ph.ict_index,
         ph.transfers_in,
         ph.selected,
+        p.now_cost,
         p.minutes AS accumulated_minutes,
         t.team_name AS players_team,
         pos.position_name,

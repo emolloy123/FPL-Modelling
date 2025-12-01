@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-fpl-modelling = { path = "fpl_modelling-0.1.0-py3-none-any.whl" }
+fpl-modelling = { path = "../fpl-modelling/dist/fpl_modelling-0.1.0-py3-none-any.whl" }
 
 # Only needed if you plan to build this as a package
 # [build-system]

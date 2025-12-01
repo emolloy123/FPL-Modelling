@@ -11,7 +11,7 @@ def create_player_gw_hist_table_pipeline(**kwargs):
                     db_players="players"
                     ),
                 outputs="players_hist",
-                name="create_players_gw_hist_node",
+                name="create_players_gw_hist_node", 
             ),
         ]
     )
