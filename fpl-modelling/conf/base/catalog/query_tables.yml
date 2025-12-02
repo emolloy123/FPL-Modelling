@@ -32,80 +32,80 @@ players_merged:
     LEFT JOIN positions pos ON p.position_id = pos.position_id
 
   
+# players_hist_merged:
+#   type: pandas.SQLQueryDataset
+#   credentials: db_credentials
+#   sql: |
+#     -- Step 1: Aggregate total stats per player
+#     WITH player_totals AS (
+#         SELECT
+#             player_id,
+#             SUM(minutes) AS total_minutes,
+#             SUM(total_points) AS total_points,
+#             SUM(transfers_in) AS total_transfers_in,
+#             SUM(transfers_out) AS total_transfers_out,
+#             SUM(ict_index) AS total_ict_index
+#         FROM players_hist
+#         GROUP BY player_id
+#     )
+
+#     -- Step 2: Join back to players_hist for per-round info and compute cumulative sums
+#     SELECT
+#         ph.player_id,
+#         p.web_name,
+#         p.first_name,
+#         p.second_name,
+#         p.now_cost,
+#         p.player_name,
+#         ph.team_id,
+#         t.team_name AS players_team,
+#         ph.opponent_team AS opponent_team_id,
+#         op_t.team_name AS opponent_team,
+#         ph.was_home,
+#         ph.team_a_score,
+#         ph.team_h_score,
+#         ph.round,
+#         ph.minutes AS round_minutes,
+#         ph.total_points AS round_points,
+#         ph.value AS transfer_cost,
+#         ph.transfers_balance,
+#         ph.selected,
+#         ph.transfers_in,
+#         ph.transfers_out,
+#         ph.ict_index,
+#         totals.total_minutes,
+#         totals.total_points,
+#         totals.total_transfers_in,
+#         totals.total_transfers_out,
+#         ph.position_id,
+#         pos.position_name,
+#         pos.singular_name_short AS position_name_abbr,
+        
+        
+#         -- cumulative sums per round
+#         SUM(ph.minutes) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_minutes,
+#         SUM(ph.total_points) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_points,
+#         SUM(ph.ict_index) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_ict_index
+
+#     FROM players_hist ph
+#     JOIN player_totals totals ON ph.player_id = totals.player_id
+#     LEFT JOIN players p ON ph.player_id = p.player_id
+#     LEFT JOIN teams t ON ph.team_id = t.team_id
+#     LEFT JOIN positions pos ON ph.position_id = pos.position_id
+#     LEFT JOIN teams op_t ON ph.opponent_team = op_t.team_id
+
+#     ORDER BY ph.player_id, ph.round;
+
 players_hist_merged:
-  type: pandas.SQLQueryDataset
-  credentials: db_credentials
-  sql: |
-    -- Step 1: Aggregate total stats per player
-    WITH player_totals AS (
-        SELECT
-            player_id,
-            SUM(minutes) AS total_minutes,
-            SUM(total_points) AS total_points,
-            SUM(transfers_in) AS total_transfers_in,
-            SUM(transfers_out) AS total_transfers_out,
-            SUM(ict_index) AS total_ict_index
-        FROM players_hist
-        GROUP BY player_id
-    )
-
-    -- Step 2: Join back to players_hist for per-round info and compute cumulative sums
-    SELECT
-        ph.player_id,
-        p.web_name,
-        p.first_name,
-        p.second_name,
-        p.now_cost,
-        p.player_name,
-        ph.team_id,
-        t.team_name AS players_team,
-        ph.opponent_team AS opponent_team_id,
-        op_t.team_name AS opponent_team,
-        ph.was_home,
-        ph.team_a_score,
-        ph.team_h_score,
-        ph.round,
-        ph.minutes AS round_minutes,
-        ph.total_points AS round_points,
-        ph.value AS transfer_cost,
-        ph.transfers_balance,
-        ph.selected,
-        ph.transfers_in,
-        ph.transfers_out,
-        ph.ict_index,
-        totals.total_minutes,
-        totals.total_points,
-        totals.total_transfers_in,
-        totals.total_transfers_out,
-        ph.position_id,
-        pos.position_name,
-        pos.singular_name_short AS position_name_abbr,
-        
-        
-        -- cumulative sums per round
-        SUM(ph.minutes) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_minutes,
-        SUM(ph.total_points) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_points,
-        SUM(ph.ict_index) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_ict_index
-
-    FROM players_hist ph
-    JOIN player_totals totals ON ph.player_id = totals.player_id
-    LEFT JOIN players p ON ph.player_id = p.player_id
-    LEFT JOIN teams t ON ph.team_id = t.team_id
-    LEFT JOIN positions pos ON ph.position_id = pos.position_id
-    LEFT JOIN teams op_t ON ph.opponent_team = op_t.team_id
-
-    ORDER BY ph.player_id, ph.round;
-
-player_info_at_gameweek:
   type: kedro_datasets.pandas.SQLQueryDataset
   credentials: db_credentials
   sql: |
     SELECT
         ph.player_id,
+        p.player_name,
         p.web_name,
         p.first_name,
         p.second_name,
-        p.now_cost,
         ph.team_id,
         t.team_name AS players_team,
         ph.was_home,
@@ -117,7 +117,7 @@ player_info_at_gameweek:
         ph.round,
         ph.minutes AS round_minutes,
         ph.total_points AS round_points,
-        ph.value AS transfer_cost,
+        ph.value/10 AS transfer_cost,
         ph.transfers_balance,
         ph.selected,
         ph.transfers_in,
@@ -138,7 +138,7 @@ player_info_at_gameweek:
         CASE 
             WHEN ph.team_id = nf.team_h THEN 1
             WHEN ph.team_id = nf.team_a THEN 0
-        END AS next_week_was_home,
+        END AS next_week_is_home,
 
         opp_team.team_name AS next_week_opponent_team_name
 

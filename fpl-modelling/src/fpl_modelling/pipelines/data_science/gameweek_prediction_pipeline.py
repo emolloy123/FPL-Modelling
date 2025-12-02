@@ -11,13 +11,11 @@ def create_gameweek_prediction_pipeline(**kwargs) -> Pipeline:
         node(
             func=points_prediction,
             inputs=dict(
-                player_info_at_gameweek = "player_info_at_gameweek",
-                # trained_pipeline = "trained_pipeline",
+                df = "players_hist_merged",
                 model_config = "params:model_config",
                 model_num = "params:model_num",
-                # mlflow_model_name = "params:mlflow_model_name",
                 mlflow_tracking_uri = "params:mlflow_tracking_uri",
-                gameweek="params:gameweek"
+                predicting_gameweek="params:predicting_gameweek"
             ),  
             outputs="opt_input_df",
             name="points_prediction_pipeline",

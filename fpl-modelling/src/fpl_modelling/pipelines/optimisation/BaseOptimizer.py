@@ -27,7 +27,7 @@ class BaseOptimizer:
         self.player_info = {}
         for idx, row in df.iterrows():
             self.player_info[row['player_name']] = {
-                'cost': row['now_cost'],
+                'cost': row['transfer_cost'],
                 'points': row[kpi_col],
                 'position': row['position_name'],
                 'team': row['team_id']

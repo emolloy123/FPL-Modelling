@@ -6,16 +6,17 @@ model_num: 4
 
 model_config:
   4: 
+    minute_threshold: 1
     features:
       num_features: 
-        - accumulated_minutes
+        - cumsum_minutes
         - transfers_in
         - ict_index
         - selected
       cat_features:
-        - next_week_was_home
+        - next_week_is_home
         - players_team
-        - next_week_opponent_team
+        - next_week_opponent_team_name
         - position_name
 
     preprocessor:
@@ -23,16 +24,16 @@ model_config:
         - name: num
           transformer: sklearn.preprocessing.RobustScaler
           columns:
-            - accumulated_minutes
+            - cumsum_minutes
             - transfers_in
             - ict_index
             - selected
         - name: cat
           transformer: sklearn.preprocessing.OneHotEncoder
           columns:
-            - next_week_was_home
+            - next_week_is_home
             - players_team
-            - next_week_opponent_team
+            - next_week_opponent_team_name
             - position_name
 
 
