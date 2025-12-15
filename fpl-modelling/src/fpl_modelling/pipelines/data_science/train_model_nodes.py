@@ -30,21 +30,22 @@ def train_test_split(df:pd.DataFrame, predicting_gameweek: int):
 
 
 def train_model(train_df: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, features: tp.List[str], 
-                mlflow_tracking_uri: str, predicting_gameweek: int, target_col: str='next_week_round_points'):
+                predicting_gameweek: int, mlflow_tracking_uri: str = None, target_col: str='next_week_round_points'):
 
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment(f"gameweek_{predicting_gameweek}")
     X = train_df[features]
     y = train_df[target_col]
+    pipeline.fit(X, y)
 
-    with mlflow.start_run(run_name="fpl_model_training") as run:
-        pipeline.fit(X, y)
+    if mlflow_tracking_uri:
+        with mlflow.start_run(run_name="fpl_model_training") as run:
 
-        model_info = mlflow.sklearn.log_model(
-            sk_model=pipeline,
-            artifact_path="model",
-            registered_model_name=f"model_gameweek_{predicting_gameweek}",
-        )
+            model_info = mlflow.sklearn.log_model(
+                sk_model=pipeline,
+                artifact_path="model",
+                registered_model_name=f"model_gameweek_{predicting_gameweek}",
+            )
 
     return pipeline
 

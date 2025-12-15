@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np 
 from .MostSelectedTeam import MostSelectedTeam
 # STRAT 1 objective_col: points_per_game
-def pick_optimal_team(players_df: pd.DataFrame, objective_col: str='points'):
+def pick_optimal_team(players_df: pd.DataFrame, objective_col: str='points', print_sol=True):
 
     # sub_df = players_df[players_df['total_minutes']>180]
 
@@ -14,7 +14,7 @@ def pick_optimal_team(players_df: pd.DataFrame, objective_col: str='points'):
     sub_df = players_df
     optimizer = TeamOptimizer(sub_df, "predicted_next_week_points") 
 
-    res = optimizer.solve( budget=1e6)
+    res = optimizer.solve( budget=1e6, print_sol=print_sol)
 
     return res
 

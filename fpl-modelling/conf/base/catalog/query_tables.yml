@@ -127,6 +127,10 @@ players_hist_merged:
         pos.position_name,
         pos.singular_name_short AS position_name_abbr,
 
+        LEAD(ph.total_points) 
+        OVER (PARTITION BY ph.player_id ORDER BY ph.round) 
+        AS next_week_round_points,
+
         -- cumulative sums per player
         SUM(ph.minutes) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_minutes,
         SUM(ph.total_points) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_points,

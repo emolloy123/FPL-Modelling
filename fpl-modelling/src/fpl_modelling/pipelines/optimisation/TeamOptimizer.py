@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 from .BaseOptimizer import BaseOptimizer
 
 class TeamOptimizer(BaseOptimizer):
-    def solve(self, budget=100, debug=True):
+    def solve(self, budget=100, debug=True, print_sol = True):
         prob = pulp.LpProblem("FPL_Team_Selection", pulp.LpMaximize)
 
         x = pulp.LpVariable.dicts("squad", self.all_players, cat='Binary')
@@ -33,7 +33,8 @@ class TeamOptimizer(BaseOptimizer):
         chosen_formation = [f for f in self.FORMATIONS.keys() if formation_vars[f].value() == 1][0]
         result = self.extract_solution(x, s, c,  chosen_formation)
         result['squad_ranking'] = self.rank_squad(result['squad'])
-        self.print_team_solution(result)
+        if print_sol:
+            self.print_team_solution(result)
         return result
 
     def print_team_solution(self, result):

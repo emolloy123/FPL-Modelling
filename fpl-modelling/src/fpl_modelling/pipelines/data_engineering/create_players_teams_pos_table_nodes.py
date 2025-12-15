@@ -10,7 +10,10 @@ def init_api_client(base_url: str):
 def process_players_data(client) -> pd.DataFrame:
     """Extract and clean players data"""
 
-    players = client.get_players()
+    players = client.get_players() 
+
+    players = players.drop(columns=['scout_risks'])
+
     players = players.rename(columns={
         'id': 'player_id', 
         'team': 'team_id', 

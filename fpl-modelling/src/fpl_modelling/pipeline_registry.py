@@ -14,6 +14,7 @@ from fpl_modelling.pipelines.data_science.train_model_pipeline import create_tra
 
 from fpl_modelling.pipelines.data_engineering.create_fixtures_table_pipeline import create_fixtures_table_pipeline
 from fpl_modelling.pipelines.data_science.gameweek_prediction_pipeline import create_gameweek_prediction_pipeline 
+from fpl_modelling.pipelines.data_science.eval_model_hist_pipeline import create_eval_model_hist_pipeline
 
 def register_pipelines() -> dict[str, Pipeline]:
     """Register the project's pipelines.
@@ -38,7 +39,7 @@ def register_pipelines() -> dict[str, Pipeline]:
     fixtures_table_pipeline = create_fixtures_table_pipeline()
 
     gameweek_prediction_pipeline = create_gameweek_prediction_pipeline()
-
+    eval_model_hist_pipeline = create_eval_model_hist_pipeline()
     return {
         "create_players_teams_pos_tables": players_teams_pos_table_pipeline,
         "pick_optimal_team": pick_optimal_team_pipeline,
@@ -50,5 +51,6 @@ def register_pipelines() -> dict[str, Pipeline]:
         "train_model": train_model_pipeline, #RUNTIME PARAMS: model_num
         "train_new_model": prepare_model_data_pipeline + train_model_pipeline,  #RUNTIME PARAMS: current_gameweek, model_num
         "create_fixtures_table": fixtures_table_pipeline,
-        "gameweek_prediction": gameweek_prediction_pipeline + pick_optimal_team_pipeline # RUNTIME PARAMS: model_num, gameweek 
+        "gameweek_prediction": gameweek_prediction_pipeline + pick_optimal_team_pipeline, # RUNTIME PARAMS: model_num, gameweek 
+        "eval_model": eval_model_hist_pipeline
     }
