@@ -8,3 +8,10 @@ trained_pipeline:
   type: pickle.PickleDataset  # or joblib if available
   filepath: data/06_models/model_pipeline.pkl
   backend: joblib  # Add this line
+
+
+joined_data:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/joined_data.parquet
+  save_args:
+    index: False
