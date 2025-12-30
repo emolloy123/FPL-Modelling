@@ -88,7 +88,7 @@ def _get_train_test_predictions(
         return y_pred_test, y_true_test, y_pred_train, y_true_train
         
     except Exception as e:
-        logger.error(f"Error generating predictions: {str(e)}")
+        logger.error(f"{str(e)}")
         raise
 
 
@@ -100,9 +100,7 @@ def _get_optimal_team_test_prediction(
 ) -> tp.Dict:
     """
     Pick optimal fantasy football team based on model predictions.
-    
-    Private helper function - not a Kedro node.
-    
+        
     Creates a copy of the input dataframe with prediction columns added,
     then runs optimization to select the best team.
     
@@ -333,14 +331,13 @@ def eval_model(
         raise RuntimeError(
             "All gameweeks failed evaluation. Check logs for details."
         )
-
-    print(picked_teams)
     
     return metric_handler.gameweek_metrics, picked_teams
 
-def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: pd.DataFrame):
+def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: pd.DataFrame, average_points: tp.Dict):
+
     all_joined_data = []
-    
+    true_points_list, avg_points, pred_points = [],[],[]
     for gameweek, gw_team in picked_teams.items():
         picked_team_gw = gw_team['squad']  # Assuming this contains player names
         
@@ -364,7 +361,43 @@ def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: 
         comparsion = compare_player_points(joined_data)
         
         all_joined_data.append(joined_data)
-    print(joined_data)
+
+        logger.info(f"{'='*20} Gameweek {gameweek} {'='*20}")
+        gw_starters = joined_data[joined_data['rank']<=11]
+        true_points = gw_starters['next_week_round_points'].sum() + gw_starters[gw_starters['rank']==1]['next_week_round_points'].values
+
+        logger.info(f'Actual Total Points {true_points[0]}, Average Total Points {average_points[gameweek]}, Predicted Total Points {int(gw_team['expected_points'])},')
+        true_points_list.append(true_points[0])
+        pred_points.append(int(gw_team['expected_points']))
+        avg_points.append(average_points[gameweek])
+
+        print(joined_data)
+    
+    gws = picked_teams.keys()
+    # print(gws, true_points_list, pred_points, avg_points)
+    comparison_df = pd.DataFrame(
+        {
+            "gameweek": gws,
+            "true_points": true_points_list,
+            "pred_points": pred_points,
+            "avg_points": avg_points,
+        }
+    ).sort_values("gameweek")
+    total_row = pd.DataFrame(
+    {
+        "gameweek": ["TOTAL"],
+        "true_points": [comparison_df["true_points"].sum()],
+        "pred_points": [comparison_df["pred_points"].sum()],
+        "avg_points": [comparison_df["avg_points"].sum()],
+    }
+    )
+
+    comparison_df = pd.concat(
+        [comparison_df, total_row],
+        ignore_index=True
+    )
+    print(comparison_df)
+
     return pd.concat(all_joined_data, ignore_index=True)
 
 def compare_player_points(joined_data): 

@@ -1,9 +1,17 @@
-# shift_to_next_week_cols:
-#     - round_points
-
-# minute_threshold: 0
-
-# target_col: next_week_round_points
-
-# num_games_to_predict: 1
-# num_test_gameweeks: 1
+rolling_features:
+  # Transfer metrics
+  transfers_in:
+    method: ewm
+    n: 3
+    min_periods: 2
+  
+  transfers_out:
+    method: ewm
+    n: 3
+    min_periods: 2
+  
+  # Performance metrics
+  ict_index:
+    method: ewm
+    n: 5
+    min_periods: 3

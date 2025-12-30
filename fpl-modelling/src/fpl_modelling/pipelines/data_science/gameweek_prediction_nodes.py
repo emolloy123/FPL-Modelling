@@ -7,7 +7,7 @@ def points_prediction(df: pd.DataFrame, model_config: tp.Dict, model_num: int, m
     """
     Predict expected points for all players in the specified gameweek
     """
-
+    predicting_gameweek = predicting_gameweek-1
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     if trained_pipeline is None:
         trained_pipeline= mlflow.sklearn.load_model(f"models:/model_gameweek_{predicting_gameweek}/latest")
@@ -21,6 +21,6 @@ def points_prediction(df: pd.DataFrame, model_config: tp.Dict, model_num: int, m
 
     # Add or replace the points column with model predictions
     players_df['predicted_next_week_points'] = y_pred
-
+    print(players_df)
     return players_df
 

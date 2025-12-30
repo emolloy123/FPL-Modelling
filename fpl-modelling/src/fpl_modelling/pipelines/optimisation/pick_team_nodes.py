@@ -12,7 +12,7 @@ def pick_optimal_team(players_df: pd.DataFrame, objective_col: str='points', pri
 
     # print(list(sub_df.columns))
     sub_df = players_df
-    optimizer = TeamOptimizer(sub_df, objective_col) 
+    optimizer = TeamOptimizer(sub_df, kpi_col="predicted_next_week_points") 
 
     res = optimizer.solve( budget=1e6, print_sol=print_sol)
 

@@ -34,6 +34,7 @@ def train_model(train_df: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, fea
 
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     mlflow.set_experiment(f"gameweek_{predicting_gameweek}")
+    print(train_df.columns)
     X = train_df[features]
     y = train_df[target_col]
     pipeline.fit(X, y)
