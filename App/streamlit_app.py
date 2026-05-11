@@ -1,134 +1,87 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import altair as alt
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="FPL ML Optimiser", layout="wide")
+# --- Page Config ---
+st.set_page_config(page_title="FPL Optimiser", page_icon="⚽", layout="wide")
 
-# -----------------------------
-# Mock Data Generators
-# -----------------------------
-np.random.seed(42)
-players = [f"Player {i}" for i in range(1, 101)]
-positions = np.random.choice(["GK", "DEF", "MID", "FWD"], size=100)
-teams = np.random.choice([f"Team {i}" for i in range(1, 21)], size=100)
-prices = np.round(np.random.uniform(4.0, 12.5, size=100), 1)
+# --- Title ---
+st.title("⚽ FPL Optimiser vs. Most Selected Team vs. Average")
+st.markdown(
+    "Compare the points per gameweek of **My Team**, "
+    "**Most Selected Team**, and the **Overall Average**."
+)
 
-mock_df = pd.DataFrame({
-    "player": players,
-    "position": positions,
-    "team": teams,
-    "price": prices,
-    "predicted_points": np.random.uniform(2, 10, size=100),
-    "actual_points": np.random.uniform(0, 15, size=100)
+# --- Example Data (replace with your real results) ---
+my_team = [45, 63, 44, 44, 39, 71, 64]
+my_team_selection = ['random', 'random', 'random', 'random', 'random', 'optimal wild card']
+most_selected_team = [34, 61, 58, 76, 55, 45, 64]
+average_points = [54, 51, 48, 63, 42, 46, 60]
+
+weeks = list(range(1, len(my_team)+1))
+
+df = pd.DataFrame({
+    "Gameweek": weeks,
+    "My Team": my_team,
+    "Most Selected Team": most_selected_team,
+    "Average Points": average_points
 })
 
-# -----------------------------
-# Sidebar
-# -----------------------------
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", [
-    "Model Performance",
-    "Team Optimiser",
-    "Model Info"
-])
+# --- Plotly Line Chart ---
+fig = go.Figure()
 
-# -----------------------------
-# Page 1: Model Performance
-# -----------------------------
-if page == "Model Performance":
-    st.title("Model vs Baseline Performance")
+fig.add_trace(go.Scatter(
+    x=df["Gameweek"],
+    y=df["My Team"],
+    mode="lines+markers",
+    name="My Team"
+))
 
-    df = mock_df.copy()
-    df["baseline_points"] = df["actual_points"].mean()
+fig.add_trace(go.Scatter(
+    x=df["Gameweek"],
+    y=df["Most Selected Team"],
+    mode="lines+markers",
+    name="Most Selected Team"
+))
 
-    st.subheader("Summary Metrics")
-    col1, col2 = st.columns(2)
+fig.add_trace(go.Scatter(
+    x=df["Gameweek"],
+    y=df["Average Points"],
+    mode="lines+markers",
+    name="Average Points"
+))
 
-    model_mae = np.mean(np.abs(df["predicted_points"] - df["actual_points"]))
-    baseline_mae = np.mean(np.abs(df["baseline_points"] - df["actual_points"]))
+fig.update_layout(
+    title="Points per Gameweek",
+    xaxis_title="Gameweek",
+    yaxis_title="Points",
+    template="plotly_white",
+    legend=dict(x=0, y=1, bgcolor="rgba(0,0,0,0)")
+)
 
-    col1.metric("Model MAE", f"{model_mae:.2f}")
-    col2.metric("Baseline MAE", f"{baseline_mae:.2f}")
+st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Predicted vs Actual Points")
-    chart = alt.Chart(df).mark_circle(size=60).encode(
-        x="predicted_points",
-        y="actual_points",
-        tooltip=["player", "team"]
-    ).interactive()
+# --- Summary Stats ---
+st.subheader("📈 Leaderboard (Total Points)")
 
-    st.altair_chart(chart, use_container_width=True)
+totals = {
+    "My Team": df["My Team"].sum(),
+    "Most Selected Team": df["Most Selected Team"].sum(),
+    "Average Points": df["Average Points"].sum()
+}
 
-# -----------------------------
-# Page 2: Team Optimiser
-# -----------------------------
-elif page == "Team Optimiser":
-    st.title("Optimal Team Selector")
+leaderboard = (
+    pd.DataFrame(totals.items(), columns=["Team", "Total Points"])
+    .sort_values(by="Total Points", ascending=False)
+    .reset_index(drop=True)
+)
 
-    budget = st.slider("Budget", 80.0, 120.0, 100.0)
+# Offset index so it starts at 1
+leaderboard.index = leaderboard.index + 1
 
-    df = mock_df.copy()
+st.dataframe(leaderboard, use_container_width=True)
 
-    # Simple greedy optimiser (mock)
-    df = df.sort_values("predicted_points", ascending=False)
+# --- Highlight Winner ---
+winner = leaderboard.iloc[0]
+st.success(f"🏆 {winner['Team']} is leading with {winner['Total Points']} points!")
 
-    team = []
-    total_cost = 0
-
-    constraints = {
-        "GK": 1,
-        "DEF": 4,
-        "MID": 4,
-        "FWD": 2
-    }
-
-    counts = {k: 0 for k in constraints}
-
-    for _, row in df.iterrows():
-        pos = row["position"]
-        if counts[pos] < constraints[pos] and total_cost + row["price"] <= budget:
-            team.append(row)
-            counts[pos] += 1
-            total_cost += row["price"]
-
-    team_df = pd.DataFrame(team)
-
-    st.subheader("Selected Team")
-    st.dataframe(team_df)
-
-    st.metric("Total Cost", f"£{total_cost:.1f}")
-    st.metric("Expected Points", f"{team_df['predicted_points'].sum():.2f}")
-
-# -----------------------------
-# Page 3: Model Info
-# -----------------------------
-elif page == "Model Info":
-    st.title("Model Information")
-
-    st.markdown("""
-    ### Overview
-    This model predicts Fantasy Premier League (FPL) points for the next gameweek.
-
-    ### Features Used
-    - Historical points
-    - Form (last 5 games)
-    - Minutes played
-    - Opponent strength
-    - Home/Away
-
-    ### Model Type
-    Example: Gradient Boosting Regressor
-
-    ### Evaluation
-    - Mean Absolute Error (MAE)
-    - Compared against baseline (average points)
-
-    ### Future Improvements
-    - Incorporate expected goals (xG)
-    - Injury/news sentiment analysis
-    - Bayesian uncertainty estimates
-    """)
-
-    st.subheader("Sample Data")
-    st.dataframe(mock_df.head())
