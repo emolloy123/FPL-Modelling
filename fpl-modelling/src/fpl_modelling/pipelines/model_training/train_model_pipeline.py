@@ -4,7 +4,7 @@ from .data_processing_nodes import preprocess_data, eng_rolling_avg_features
 
 def create_train_model_pipeline(**kwargs) -> Pipeline:
     """
-    Create a Kedro pipeline for model training using a flexible model config dict.
+    Create a Kedro pipeline for model training using a flexible model config dict. 
     """
     return pipeline([
         node(

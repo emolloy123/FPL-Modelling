@@ -3,7 +3,7 @@ import typing as tp
 from .feature_engineering import FeatureEngineeringPipeline
 def preprocess_data(df: pd.DataFrame, model_config: tp.Dict, model_num: int):
     """
-    Do some intial filters on the data
+    Do some intial filters on the data 
     """
 
     # df[f"next_week_round_points"] = df.groupby('player_id')['round_points'].shift(-1)
@@ -16,6 +16,10 @@ def preprocess_data(df: pd.DataFrame, model_config: tp.Dict, model_num: int):
     else:
          minute_threshold = model_config[model_num]['minute_threshold']
     players_hist_merged_clean = df[df['cumsum_minutes']>minute_threshold]    
+
+    # Remove players who are not playing in next gameweek
+    players_hist_merged_clean = players_hist_merged_clean[players_hist_merged_clean['next_week_fixture_count']>0]    
+
 
     return players_hist_merged_clean
 

@@ -12,7 +12,7 @@ import pandas as pd
 import typing as tp
 import logging
 from collections import defaultdict
-
+import mlflow
 import numpy as np
 import sklearn
 from sklearn.metrics import (
@@ -132,9 +132,20 @@ def _get_optimal_team_test_prediction(
         df_with_predictions = df.copy()
         df_with_predictions[objective_col_name] = y_pred_test
         df_with_predictions['true_next_week_points'] = y_true_test
-        
-        logger.debug(
-            f"Picking optimal team from {len(df_with_predictions)} players"
+
+        # Aggregate to player level (handles DGWs correctly)
+        df_with_predictions = (
+            df_with_predictions
+            .groupby(['player_id'], as_index=False)
+            .agg({
+                "predicted_next_week_points": 'sum',              # predicted points
+                'true_next_week_points': 'sum',         # actual points
+                'transfer_cost': 'first',
+                'position_name': 'first',
+                'team_id': 'first',
+                'player_name': 'first',
+                'round': 'first'
+            })
         )
         
         # Run optimization without printing (keep output clean for Kedro logs)
@@ -181,7 +192,7 @@ def eval_model(
         
     Returns:
         Tuple containing:
-            - gameweek_metrics: Dict mapping gameweek -> evaluation metrics
+            - gameweek_metrics: Dict mapping gameweek -> evaluation metrics 
               (MAE, RMSE, R2, etc. for both train and test sets)
             - picked_teams: Dict mapping gameweek -> optimal team selection
               with predicted and actual point values
@@ -205,6 +216,7 @@ def eval_model(
             )
     
     max_gameweek = players_hist_merged['round'].max()
+    # max_gameweek = 19
     min_gameweek_data = players_hist_merged['round'].min()
     
     if pd.isna(max_gameweek) or pd.isna(min_gameweek_data):
@@ -234,12 +246,12 @@ def eval_model(
         logger.error(f"Error loading model config: {str(e)}")
         raise
     
-    # Validate all features exist in dataframe
-    missing_features = set(features) - set(players_hist_merged.columns)
-    if missing_features:
-        raise ValueError(
-            f"Model requires features not in dataframe: {missing_features}"
-        )
+    # # Validate all features exist in dataframe
+    # missing_features = set(features) - set(players_hist_merged.columns)
+    # if missing_features:
+    #     raise ValueError(
+    #         f"Model requires features not in dataframe: {missing_features}"
+    #     )
     
     # Initialize containers for results
     metric_handler = Metrics()
@@ -247,6 +259,7 @@ def eval_model(
     failed_gameweeks = []
     
     # Evaluate model for each gameweek
+    mlflow.set_experiment("eval_model_hist")
     for gameweek in range(min_gameweek, int(max_gameweek)):
         logger.info(f"{'='*20} Gameweek {gameweek} {'='*20}")
         
@@ -281,7 +294,8 @@ def eval_model(
                 pipeline=pipeline,
                 features=features,
                 predicting_gameweek=gameweek,
-                target_col=target_col
+                target_col=target_col,
+                mlflow_tracking_uri=None
             )
             
             # Generate predictions
@@ -337,19 +351,32 @@ def eval_model(
 def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: pd.DataFrame, average_points: tp.Dict):
 
     all_joined_data = []
-    true_points_list, avg_points, pred_points = [],[],[]
+    true_points_list, avg_points, pred_points_list = [],[],[]
     for gameweek, gw_team in picked_teams.items():
         picked_team_gw = gw_team['squad']  # Assuming this contains player names
-        
+       
         # Filter for this gameweek and these players
-        true_players_stats = players_hist_merged[
-            (players_hist_merged['round'] == gameweek) & 
-            (players_hist_merged['player_name'].isin(picked_team_gw))
+        true_players_stats = (
+            players_hist_merged[
+                players_hist_merged['round'] == gameweek
+            ]
+            .groupby('player_id', as_index=False)
+            .agg({
+                'player_name': 'first',
+                'player_id': 'first',
+                'next_week_round_points': 'sum',
+                'next_week_round_minutes': 'sum',
+                'position_name': 'first'
+            })
+        )
+
+        true_players_stats = true_players_stats[
+            true_players_stats['player_name'].isin(picked_team_gw)
         ]
-        
         # Get predictions - need to understand your data structure here
         # If squad_ranking is in gw_team:
         predictions = gw_team['squad_ranking'][['player_name', 'predicted_next_week_points', 'rank']]
+        
         
         # Merge actual stats with predictions
         joined_data = true_players_stats.merge(
@@ -363,42 +390,145 @@ def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: 
         all_joined_data.append(joined_data)
 
         logger.info(f"{'='*20} Gameweek {gameweek} {'='*20}")
-        gw_starters = joined_data[joined_data['rank']<=11]
-        true_points = gw_starters['next_week_round_points'].sum() + gw_starters[gw_starters['rank']==1]['next_week_round_points'].values
+        gw_starters = make_subsitions(joined_data)
+        print('gw_starters')
+        print(gw_starters)
+        print('joined_Data')
+        print('joined_data')
+        # gw_starters = joined_data[joined_data['rank']<=11]
+        true_points = gw_starters['next_week_round_points'].sum() + gw_starters[gw_starters['rank']==gw_starters['rank'].min()]['next_week_round_points'].values
+        pred_points = gw_starters['predicted_next_week_points'].sum() + gw_starters[gw_starters['rank']==gw_starters['rank'].min()]['predicted_next_week_points'].values
+
+        print('true_points', true_points)
+        print('pred_points', pred_points)
 
         logger.info(f'Actual Total Points {true_points[0]}, Average Total Points {average_points[gameweek]}, Predicted Total Points {int(gw_team['expected_points'])},')
         true_points_list.append(true_points[0])
-        pred_points.append(int(gw_team['expected_points']))
+        pred_points_list.append(pred_points[0])
         avg_points.append(average_points[gameweek])
-
-        print(joined_data)
+        print('JOINED DATA')
+        print(joined_data[['player_name', 'next_week_round_minutes', 'rank', 'next_week_round_points', 'predicted_next_week_points']])
+        print(joined_data.columns)
     
     gws = picked_teams.keys()
     # print(gws, true_points_list, pred_points, avg_points)
+    # Create base df
     comparison_df = pd.DataFrame(
         {
             "gameweek": gws,
             "true_points": true_points_list,
-            "pred_points": pred_points,
+            "pred_points": pred_points_list,
             "avg_points": avg_points,
         }
     ).sort_values("gameweek")
+
+    # Cumulative sums (ONLY on actual gameweeks)
+    comparison_df["cumsum_true_points"] = comparison_df["true_points"].cumsum()
+    comparison_df["cumsum_pred_points"] = comparison_df["pred_points"].cumsum()
+    comparison_df["cumsum_avg_points"] = comparison_df["avg_points"].cumsum()
+
+    # Total row
     total_row = pd.DataFrame(
     {
         "gameweek": ["TOTAL"],
         "true_points": [comparison_df["true_points"].sum()],
         "pred_points": [comparison_df["pred_points"].sum()],
         "avg_points": [comparison_df["avg_points"].sum()],
+        "cumsum_true_points": [comparison_df["true_points"].sum()],
+        "cumsum_pred_points": [comparison_df["pred_points"].sum()],
+        "cumsum_avg_points": [comparison_df["avg_points"].sum()],
     }
     )
 
+    # Append total
     comparison_df = pd.concat(
         [comparison_df, total_row],
         ignore_index=True
     )
-    print(comparison_df)
 
+    print(comparison_df)
     return pd.concat(all_joined_data, ignore_index=True)
+
+
+def make_subsitions(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Apply FPL autosubs:
+    - Replace starters with 0 minutes using bench players
+    - Respect formation constraints
+    - Bench priority based on rank (lower rank = higher priority)
+    """
+
+    df = df.copy()
+
+    # Split starters and bench
+    starters = df[df['rank'] <= 11].copy()
+    bench = df[df['rank'] > 11].copy().sort_values('rank')  # priority order
+
+    # Formation constraints
+    MIN_FORMATION = {
+        'Goalkeeper': 1,
+        'Defender': 3,
+        'Midfielder': 2,
+        'Forward': 1
+    }
+
+    MAX_FORMATION = {
+        'Goalkeeper': 1,
+        'Defender': 5,
+        'Midfielder': 5,
+        'Forward': 3
+    }
+
+    def is_valid_formation(players: pd.DataFrame) -> bool:
+        counts = players['position_name'].value_counts().to_dict()
+        for pos in MIN_FORMATION:
+            if counts.get(pos, 0) < MIN_FORMATION[pos]:
+                return False
+            if counts.get(pos, 0) > MAX_FORMATION[pos]:
+                return False
+        return True
+
+    # --- STEP 1: Handle GK separately ---
+    gk = starters[starters['position_name'] == 'Goalkeeper']
+
+    if len(gk) == 1 and gk.iloc[0]['next_week_round_minutes'] == 0:
+        bench_gk = bench[bench['position_name'] == 'Goalkeeper']
+        if not bench_gk.empty:
+            sub = bench_gk.iloc[0]
+
+            # swap
+            starters = starters[starters['player_id'] != gk.iloc[0]['player_id']]
+            starters = pd.concat([starters, sub.to_frame().T])
+
+            bench = bench[bench['player_id'] != sub['player_id']]
+
+    # --- STEP 2: Handle outfield players ---
+    zero_min_starters = starters[
+        (starters['next_week_round_minutes'] == 0) &
+        (starters['position_name'] != 'Goalkeeper')
+    ].copy()
+
+    for _, starter in zero_min_starters.iterrows():
+
+        replaced = False
+
+        for _, sub in bench.iterrows():
+
+            temp_starters = starters[
+                starters['player_id'] != starter['player_id']
+            ]
+            temp_starters = pd.concat([temp_starters, sub.to_frame().T])
+
+            if is_valid_formation(temp_starters):
+                # perform substitution
+                starters = temp_starters
+                bench = bench[bench['player_id'] != sub['player_id']]
+                replaced = True
+                break
+
+        # if no valid sub found → player stays (FPL behaviour)
+
+    return starters
 
 def compare_player_points(joined_data): 
 

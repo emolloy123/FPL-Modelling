@@ -131,6 +131,10 @@ players_hist_merged:
         OVER (PARTITION BY ph.player_id ORDER BY ph.round) 
         AS next_week_round_points,
 
+        LEAD(ph.minutes) 
+        OVER (PARTITION BY ph.player_id ORDER BY ph.round) 
+        AS next_week_round_minutes,
+
         -- cumulative sums per player
         SUM(ph.minutes) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_minutes,
         SUM(ph.total_points) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_points,
@@ -144,7 +148,18 @@ players_hist_merged:
             WHEN ph.team_id = nf.team_a THEN 0
         END AS next_week_is_home,
 
-        opp_team.team_name AS next_week_opponent_team_name
+        opp_team.team_name AS next_week_opponent_team_name,
+
+        COUNT(nf.id) OVER (
+        PARTITION BY ph.player_id, ph.round
+        ) AS next_week_fixture_count,
+
+        CASE 
+            WHEN COUNT(nf.id) OVER (
+                PARTITION BY ph.player_id, ph.round
+            ) > 1 THEN 1
+            ELSE 0
+        END AS next_week_dgw
 
     FROM players_hist ph
     LEFT JOIN players p ON ph.player_id = p.player_id
@@ -161,7 +176,7 @@ players_hist_merged:
         ON opp_team.team_id = CASE 
             WHEN ph.team_id = nf.team_h THEN nf.team_a
             WHEN ph.team_id = nf.team_a THEN nf.team_h
-        END
+        END 
 
     ORDER BY ph.player_id, ph.round;
 

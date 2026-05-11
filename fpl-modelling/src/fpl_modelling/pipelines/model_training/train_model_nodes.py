@@ -1,11 +1,10 @@
-from fpl_modelling.pipelines.data_processing.ExpandingDF import ExpandingDF
 from .ModelPipelineBuilder import ModelPipelineBuilder
 import typing as tp 
 import pandas as pd 
 import sklearn 
 import mlflow
 
-def load_config(model_config: tp.Dict, model_num: int):
+def load_config(model_config: tp.Dict, model_num: int): 
     """
     Load model pipeline
     """
@@ -32,12 +31,13 @@ def train_test_split(df:pd.DataFrame, predicting_gameweek: int):
 def train_model(train_df: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, features: tp.List[str], 
                 predicting_gameweek: int, mlflow_tracking_uri: str = None, target_col: str='next_week_round_points'):
 
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
-    mlflow.set_experiment(f"gameweek_{predicting_gameweek}")
-    print(train_df.columns)
+    if mlflow_tracking_uri:
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
+        mlflow.set_experiment(f"gameweek_{predicting_gameweek}")
     X = train_df[features]
     y = train_df[target_col]
     pipeline.fit(X, y)
+    print(features)
 
     if mlflow_tracking_uri:
         with mlflow.start_run(run_name="fpl_model_training") as run:

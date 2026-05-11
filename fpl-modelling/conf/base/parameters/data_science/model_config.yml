@@ -13,7 +13,7 @@ model_config:
       num_features: 
         - cumsum_minutes
         - transfers_in
-        - ict_index
+        - ict_index_ewm_3
         - selected
       cat_features:
         - next_week_is_home
@@ -28,7 +28,7 @@ model_config:
           columns:
             - cumsum_minutes
             - transfers_in
-            - ict_index
+            - ict_index_ewm_3
             - selected
         - name: cat
           transformer: sklearn.preprocessing.OneHotEncoder

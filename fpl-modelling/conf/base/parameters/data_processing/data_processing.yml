@@ -13,5 +13,5 @@ rolling_features:
   # Performance metrics
   ict_index:
     method: ewm
-    n: 5
-    min_periods: 3
+    n: 3
+    min_periods: 1
