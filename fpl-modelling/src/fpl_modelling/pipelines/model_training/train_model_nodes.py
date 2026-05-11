@@ -1,43 +1,28 @@
-from .ModelPipelineBuilder import ModelPipelineBuilder
 import typing as tp 
 import pandas as pd 
 import sklearn 
 import mlflow
+from fpl_modelling.ModelConfig import load_model_config
 
-def load_config(model_config: tp.Dict, model_num: int): 
-    """
-    Load model pipeline
-    """
 
-    model_config = model_config[model_num]
-    builder = ModelPipelineBuilder(model_config) 
-    pipeline = builder.build_pipeline()
-
-    features = model_config['features']['num_features'] + model_config['features']['cat_features']
-
-    return pipeline, features
-
-def train_test_split(df:pd.DataFrame, predicting_gameweek: int):
+def cutoff_future_data(df:pd.DataFrame, predicting_gameweek: int):
     """
     Split data into train and test, test dat being num_test_gameweeks most recent gameweeks
     """
 
-    test_df = df[df['round']==predicting_gameweek].reset_index(drop=True)
-    train_df = df[df['round'] < predicting_gameweek].reset_index(drop=True)
+    train_df = df[df['round'] <= predicting_gameweek].reset_index(drop=True)
 
-    return train_df, test_df
+    return train_df
 
 
-def train_model(train_df: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, features: tp.List[str], 
-                predicting_gameweek: int, mlflow_tracking_uri: str = None, target_col: str='next_week_round_points'):
+def train_model(X_train: pd.DataFrame, y_train: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, 
+                predicting_gameweek: int, mlflow_tracking_uri: str = None):
 
     if mlflow_tracking_uri:
         mlflow.set_tracking_uri(mlflow_tracking_uri)
         mlflow.set_experiment(f"gameweek_{predicting_gameweek}")
-    X = train_df[features]
-    y = train_df[target_col]
-    pipeline.fit(X, y)
-    print(features)
+        
+    pipeline.fit(X_train, y_train)
 
     if mlflow_tracking_uri:
         with mlflow.start_run(run_name="fpl_model_training") as run:

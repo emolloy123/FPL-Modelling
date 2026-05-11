@@ -1,7 +1,6 @@
-from .gameweek_prediction_nodes import points_prediction
+from .gameweek_prediction_nodes import predict_points_every_player_next_gameweek, get_predicted_optimal_team_next_gameweek
 
 from kedro.pipeline import Pipeline, node, pipeline
-from .data_processing_nodes import preprocess_data
 
 
 def create_gameweek_prediction_pipeline(**kwargs) -> Pipeline:
@@ -10,25 +9,22 @@ def create_gameweek_prediction_pipeline(**kwargs) -> Pipeline:
     """
     return pipeline([
         node(
-            func=preprocess_data,
+            func=predict_points_every_player_next_gameweek,
             inputs=dict(
-                df = "players_hist_merged",
+                pipeline = "pipeline",
                 model_config = "params:model_config",
-                model_num = "params:model_num"
-            ),  # model_config is passed as dict param
-            outputs="df_processed",
-            name="preprocess_data_pipeline",
-        ),  
-        node(
-            func=points_prediction,
-            inputs=dict(
-                df = "df_processed",
-                model_config = "params:model_config",
-                model_num = "params:model_num",
-                mlflow_tracking_uri = "params:mlflow_tracking_uri",
-                predicting_gameweek="params:predicting_gameweek"
+                X_test = "X_test"
             ),  
-            outputs="opt_input_df",
-            name="points_prediction_pipeline",
+            outputs="players_hist_merged_w_predictions",
+            name="predict_points_every_player_next_gameweek_node",
+        ),
+        node(
+            func=get_predicted_optimal_team_next_gameweek,
+            inputs=dict(
+                df_with_predictions = "players_hist_merged_w_predictions",
+            ),  
+            outputs="predicted_optimal_team_next_gw",
+            name="get_predicted_optimal_team_next_gameweek_node",
         ),
     ])
+    

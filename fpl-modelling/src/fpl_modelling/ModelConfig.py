@@ -1,3 +1,6 @@
+import typing as tp
+
+
 import importlib
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -57,3 +60,16 @@ class ModelPipelineBuilder:
 
         pipeline = Pipeline(steps=steps)
         return pipeline
+
+def load_model_config(model_config: tp.Dict, model_num: int): 
+    """
+    Load model pipeline
+    """
+
+    model_config = model_config[model_num]
+    builder = ModelPipelineBuilder(model_config) 
+    pipeline = builder.build_pipeline()
+
+    features = model_config['features']['num_features'] + model_config['features']['cat_features']
+
+    return pipeline, features

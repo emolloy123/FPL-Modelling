@@ -22,7 +22,7 @@ from sklearn.metrics import (
     r2_score
 )
 
-from .train_model_nodes import load_config, train_test_split, train_model
+from fpl_modelling.pipelines.model_training.train_model_nodes import   train_model
 from fpl_modelling.pipelines.optimisation.pick_team_nodes import pick_optimal_team
 from .Metrics import Metrics
 
@@ -58,18 +58,6 @@ def _get_train_test_predictions(
         ValueError: If required columns are missing from dataframes
         KeyError: If specified features are not in dataframes
     """
-    # Validate required columns exist
-    for df, df_name in [(test_df, 'test_df'), (train_df, 'train_df')]:
-        if target_col not in df.columns:
-            raise ValueError(
-                f"{df_name} missing required target column: '{target_col}'"
-            )
-        
-        missing_features = set(features) - set(df.columns)
-        if missing_features:
-            raise KeyError(
-                f"{df_name} missing required features: {missing_features}"
-            )
     
     try:
         # Generate predictions
@@ -319,6 +307,7 @@ def eval_model(
                 objective_col_name="predicted_next_week_points"
             )
             
+            
             logger.info(f"Gameweek {gameweek} evaluation completed successfully")
             
         except Exception as e:
@@ -348,6 +337,36 @@ def eval_model(
     
     return metric_handler.gameweek_metrics, picked_teams
 
+
+def store_gameweek_predictions(picked_team_gw, players_hist_merged, gameweek):
+
+    # Groups player id by gameweek to handle double gameweeks
+    true_players_stats = (
+        players_hist_merged[
+            players_hist_merged['round'] == gameweek
+        ]
+        .groupby('player_id', as_index=False)
+        .agg({
+            'player_name': 'first',
+            'player_id': 'first',
+            'next_week_round_points': 'sum',
+            'next_week_round_minutes': 'sum',
+            'position_name': 'first'
+        })
+    )
+
+    # filter to players picked by model
+    true_players_stats = true_players_stats[
+            true_players_stats['player_name'].isin(picked_team_gw)
+        ]
+
+    # Merge actual stats with predictions
+    joined_data = true_players_stats.merge(
+            predictions, 
+            on='player_name', 
+            how='inner'
+        ).sort_values(by='rank')
+    
 def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: pd.DataFrame, average_points: tp.Dict):
 
     all_joined_data = []
@@ -373,7 +392,6 @@ def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: 
         true_players_stats = true_players_stats[
             true_players_stats['player_name'].isin(picked_team_gw)
         ]
-        # Get predictions - need to understand your data structure here
         # If squad_ranking is in gw_team:
         predictions = gw_team['squad_ranking'][['player_name', 'predicted_next_week_points', 'rank']]
         
@@ -384,9 +402,7 @@ def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: 
             on='player_name', 
             how='inner'
         ).sort_values(by='rank')
-        
-        comparsion = compare_player_points(joined_data)
-        
+                
         all_joined_data.append(joined_data)
 
         logger.info(f"{'='*20} Gameweek {gameweek} {'='*20}")

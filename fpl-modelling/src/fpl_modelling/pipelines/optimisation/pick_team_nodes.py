@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np 
 from .MostSelectedTeam import MostSelectedTeam
 # STRAT 1 objective_col: points_per_game
-def pick_optimal_team(players_df: pd.DataFrame, objective_col: str='points', print_sol=True):
+def pick_optimal_team(players_df: pd.DataFrame, objective_col: str, print_sol=True):
 
     # sub_df = players_df[players_df['total_minutes']>180]
 

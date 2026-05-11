@@ -10,7 +10,6 @@ This pipeline evaluates a model's performance across multiple gameweeks by:
 
 from kedro.pipeline import Pipeline, node, pipeline
 from .eval_model_hist_nodes import eval_model, compare_pred_team_to_true_score
-from .data_processing_nodes import preprocess_data, eng_rolling_avg_features 
 
 def create_eval_model_hist_pipeline(**kwargs) -> Pipeline:
     """
@@ -38,26 +37,8 @@ def create_eval_model_hist_pipeline(**kwargs) -> Pipeline:
         min_gameweek: Minimum gameweek to start evaluation from (default: 2)
         target_col: Name of target column to predict (default: 'next_week_round_points')
     """
-    return pipeline([
-        node(
-            func=preprocess_data,
-            inputs=dict(
-                df = "players_hist_merged",
-                model_config = "params:model_config",
-                model_num = "params:model_num"
-            ),  # model_config is passed as dict param
-            outputs="df_processed_imd",
-            name="preprocess_data_node",
-        ),  
-        node(
-            func=eng_rolling_avg_features,
-            inputs=dict(
-                df = "df_processed_imd",
-                rolling_features = "params:rolling_features",
-            ),  # model_config is passed as dict param
-            outputs="df_processed",
-            name="eng_rolling_avg_features_node",
-        ),  
+    return pipeline([        
+        
         node(
             func=eval_model,
             inputs=dict(
