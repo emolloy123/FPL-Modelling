@@ -1,14 +1,14 @@
 from kedro.pipeline import Pipeline, node, pipeline
 from .pick_team_nodes import (
     pick_most_selected_team,
-    pick_optimal_team
+    pick_optimal_predicted_team_next_gw
 )
 
 def create_pick_optimal_team_pipeline(**kwargs) -> Pipeline:
     return pipeline([
         # Fetch raw data from APIs
         node(
-            func=pick_optimal_team,
+            func=pick_optimal_predicted_team_next_gw,
             inputs=dict(
                 players_df="opt_input_df",
                 objective_col = "params:objective_col"

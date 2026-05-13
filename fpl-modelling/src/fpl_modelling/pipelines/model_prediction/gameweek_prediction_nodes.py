@@ -6,34 +6,32 @@ import logging
 logger = logging.getLogger(__name__)
 from fpl_modelling.ModelConfig import load_model_config
 import numpy as np 
-from fpl_modelling.pipelines.optimisation.pick_team_nodes import pick_optimal_team
-
-def predict_points_every_player_next_gameweek(model_config: tp.Dict, model_num: int, df: pd.DataFrame, predicting_gameweek):
-
-    
-    pipeline, features = load_model_config(model_config, model_num)
-
-    X = df[df['round']==predicting_gameweek][features]
-
-    return pipeline.predict(X)
+from fpl_modelling.pipelines.optimisation.TeamOptimizer import TeamOptimizer
 
 
-def join_back_predictions(model_predictions: np.ndarray, players_hist_merged):
+def model_prediction_train_test(pipeline, X_train, X_test):
 
-    players_hist_merged['predicted_next_week_roud_points'] = model_predictions
+    return pipeline.predict(X_train), pipeline.predict(X_test)
 
-    return players_hist_merged
 
-def get_predicted_optimal_team_next_gameweek(df_with_predictions, objective_col = 'predicted_next_week_roud_points'):
+def join_back_predictions(df_train: pd.DataFrame, df_test: pd.DataFrame, y_pred_train: np.ndarray, y_pred_test: np.ndarray):
+
+    df_train['predicted_next_round_points'] = y_pred_train
+
+    df_test['predicted_next_round_points'] = y_pred_test
+
+    return df_train, df_test
+
+def get_predicted_optimal_team_next_gameweek(df_test: pd.DataFrame, objective_col = 'predicted_next_round_points'):
 
     # Aggregate to player level (handles DGWs correctly)
 
-    df_with_predictions = (
-            df_with_predictions
+    df_test = (
+            df_test
             .groupby(['player_id'], as_index=False)
             .agg({
-                "predicted_next_week_points": 'sum',              # predicted points
-                'true_next_week_points': 'sum',         # actual points
+                "predicted_next_round_points": 'sum',              # predicted points
+                'next_week_round_points': 'sum',         # actual points
                 'transfer_cost': 'first',
                 'position_name': 'first',
                 'team_id': 'first',
@@ -41,9 +39,11 @@ def get_predicted_optimal_team_next_gameweek(df_with_predictions, objective_col 
                 'round': 'first'
             })
         )
-        
-    return pick_optimal_team(df_with_predictions, objective_col=objective_col, print_sol=False)
 
+    optimizer = TeamOptimizer(df_test, kpi_col="predicted_next_round_points") 
+
+    return optimizer.solve(budget=1e6, print_sol=False)
+        
 
 # def points_prediction(df: pd.DataFrame, model_config: tp.Dict, model_num: int, mlflow_tracking_uri: str, predicting_gameweek: int, trained_pipeline=None):
 #     """

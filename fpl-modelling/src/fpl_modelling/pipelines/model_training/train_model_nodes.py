@@ -2,18 +2,6 @@ import typing as tp
 import pandas as pd 
 import sklearn 
 import mlflow
-from fpl_modelling.ModelConfig import load_model_config
-
-
-def cutoff_future_data(df:pd.DataFrame, predicting_gameweek: int):
-    """
-    Split data into train and test, test dat being num_test_gameweeks most recent gameweeks
-    """
-
-    train_df = df[df['round'] <= predicting_gameweek].reset_index(drop=True)
-
-    return train_df
-
 
 def train_model(X_train: pd.DataFrame, y_train: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, 
                 predicting_gameweek: int, mlflow_tracking_uri: str = None):
@@ -33,6 +21,4 @@ def train_model(X_train: pd.DataFrame, y_train: pd.DataFrame, pipeline: sklearn.
                 registered_model_name=f"model_gameweek_{predicting_gameweek}",
             )
 
-    return pipeline
-
-# def eval_model_walk_forward_cross_val():
+    return pipeline, run.info.run_id

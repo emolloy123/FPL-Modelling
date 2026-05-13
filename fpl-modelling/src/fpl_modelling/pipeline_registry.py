@@ -14,7 +14,8 @@ from fpl_modelling.pipelines.data_preprocessing.data_preprocessing_pipeline impo
 
 from fpl_modelling.pipelines.data_engineering.create_fixtures_table_pipeline import create_fixtures_table_pipeline
 from fpl_modelling.pipelines.model_prediction.gameweek_prediction_pipeline import create_gameweek_prediction_pipeline 
-from fpl_modelling.pipelines.model_evaluation.eval_model_hist_pipeline import create_eval_model_hist_pipeline
+# from fpl_modelling.pipelines.model_evaluation.eval_model_hist_pipeline import create_eval_model_hist_pipeline
+from fpl_modelling.pipelines.model_evaluation.eval_model_one_gw_pipeline import create_eval_model_one_gw_pipeline
 
 def register_pipelines() -> dict[str, Pipeline]:
     """Register the project's pipelines.
@@ -41,12 +42,14 @@ def register_pipelines() -> dict[str, Pipeline]:
     fixtures_table_pipeline = create_fixtures_table_pipeline()
 
     gameweek_prediction_pipeline = create_gameweek_prediction_pipeline()
-    eval_model_hist_pipeline = create_eval_model_hist_pipeline()
+    # eval_model_hist_pipeline = create_eval_model_hist_pipeline()
+    eval_model_one_gw_pipeline = create_eval_model_one_gw_pipeline()
     return {
         # UPDATING TABLES
         "create_players_teams_pos_tables": players_teams_pos_table_pipeline,
         "create_player_gw_hist_table": player_gw_hist_table_pipeline,
         "create_fixtures_table": fixtures_table_pipeline,
+        
         # Update all tables at once
         "update_tables": players_teams_pos_table_pipeline + player_gw_hist_table_pipeline + fixtures_table_pipeline,
 
@@ -55,8 +58,11 @@ def register_pipelines() -> dict[str, Pipeline]:
 
         # MODEL PREDICTION
         "pick_optimal_team": pick_optimal_team_pipeline,
-        "gameweek_prediction": data_preprocessing_pipeline + gameweek_prediction_pipeline + pick_optimal_team_pipeline, # RUNTIME PARAMS: model_num, predicting_gameweek 
-        "eval_model": eval_model_hist_pipeline,
+        "gameweek_prediction": data_preprocessing_pipeline + train_model_pipeline + gameweek_prediction_pipeline, #+ pick_optimal_team_pipeline, # RUNTIME PARAMS: model_num, predicting_gameweek 
+
+        # MODEL EVALUATION
+        # "eval_model": eval_model_hist_pipeline,
+        "eval_model": data_preprocessing_pipeline + train_model_pipeline + gameweek_prediction_pipeline + eval_model_one_gw_pipeline,
 
         # ARCHIVE
         "pick_most_selected_team": pick_most_selected_team_pipeline,

@@ -24,7 +24,7 @@ def create_train_model_pipeline(**kwargs) -> Pipeline:
                 mlflow_tracking_uri = "params:mlflow_tracking_uri",
                 predicting_gameweek = "params:predicting_gameweek"
             ),
-            outputs="trained_pipeline",
+            outputs=["trained_pipeline", "mlflow_run_id"],
             name="train_model_node",
         ),
     ])

@@ -33,12 +33,15 @@ def train_test_split_by_gw(model_num: int, df: pd.DataFrame, model_config: tp.Di
     
     pipeline, features = load_model_config(model_config, model_num)
 
-    X_test = df[df['round']==predicting_gameweek][features]
+    df_test = df[df['round']==predicting_gameweek]
+    df_train = df[df['round']<predicting_gameweek]
 
-    X_train = df[df['round']<predicting_gameweek][features]
+    X_test = df_test[features]
 
-    y_test = df[df['round']==predicting_gameweek]['next_week_round_points']
+    X_train = df_train[features]
 
-    y_train = df[df['round']<predicting_gameweek]['next_week_round_points']
+    y_test = df_test['next_week_round_points']
 
-    return X_train, y_train, X_test, y_test
+    y_train = df_train['next_week_round_points']
+
+    return X_train, y_train, X_test, y_test, df_test, df_train

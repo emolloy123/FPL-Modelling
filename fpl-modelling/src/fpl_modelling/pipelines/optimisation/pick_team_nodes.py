@@ -3,18 +3,13 @@ import pandas as pd
 import numpy as np 
 from .MostSelectedTeam import MostSelectedTeam
 # STRAT 1 objective_col: points_per_game
-def pick_optimal_team(players_df: pd.DataFrame, objective_col: str, print_sol=True):
+def pick_optimal_predicted_team_next_gw(players_df: pd.DataFrame, objective_col: str, print_sol=True):
 
-    # sub_df = players_df[players_df['total_minutes']>180]
 
-    # # Ensure player is not injured or anything
-    # sub_df = sub_df[sub_df['chance_of_playing_next_round'].isin([np.nan, 100])]
-
-    # print(list(sub_df.columns))
     sub_df = players_df
-    optimizer = TeamOptimizer(sub_df, kpi_col="predicted_next_week_points") 
+    optimizer = TeamOptimizer(sub_df, kpi_col="predicted_next_round_points") 
 
-    res = optimizer.solve( budget=1e6, print_sol=print_sol)
+    res = optimizer.solve(budget=1e6, print_sol=print_sol)
 
     return res
 

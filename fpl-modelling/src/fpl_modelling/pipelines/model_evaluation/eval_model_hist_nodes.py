@@ -24,7 +24,7 @@ from sklearn.metrics import (
 
 from fpl_modelling.pipelines.model_training.train_model_nodes import   train_model
 from fpl_modelling.pipelines.optimisation.pick_team_nodes import pick_optimal_team
-from .Metrics import Metrics
+from .ModelEvaluator import ModelEvaluator
 
 logger = logging.getLogger(__name__)
 

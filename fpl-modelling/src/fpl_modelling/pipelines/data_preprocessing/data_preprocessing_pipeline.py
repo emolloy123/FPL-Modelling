@@ -1,5 +1,5 @@
 from kedro.pipeline import Pipeline, node, pipeline
-from .data_processing_nodes import filter_players_training_data, eng_rolling_avg_features
+from .data_processing_nodes import filter_players_training_data, eng_rolling_avg_features, train_test_split_by_gw
 
 def create_data_preprocessing_pipeline(**kwargs) -> Pipeline:
     """
@@ -24,5 +24,16 @@ def create_data_preprocessing_pipeline(**kwargs) -> Pipeline:
             ),
             outputs="df_processed",
             name="eng_rolling_avg_features_node",
+        ),
+        node(
+            func=train_test_split_by_gw,
+            inputs=dict(
+                df="df_processed",
+                model_config="params:model_config",
+                model_num = "params:model_num",
+                predicting_gameweek = "params:predicting_gameweek"
+            ),
+            outputs=["X_train", "y_train", "X_test", "y_test", "df_test", "df_train"],
+            name="train_test_split_by_gw_node",
         )
     ])
