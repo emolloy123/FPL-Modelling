@@ -9,56 +9,43 @@ This pipeline evaluates a model's performance across multiple gameweeks by:
 """
 
 from kedro.pipeline import Pipeline, node, pipeline
-from .eval_model_hist_nodes import eval_model, compare_pred_team_to_true_score
+from .eval_model_hist_nodes import eval_model_walk_forward, log_average_metrics, add_plots
 
 def create_eval_model_hist_pipeline(**kwargs) -> Pipeline:
     """
-    Create a Kedro pipeline for historical model evaluation.
-    
-    The pipeline evaluates a specified model configuration across all available
-    gameweeks, producing metrics and optimal team selections for each week.
-    
-    Args:
-        **kwargs: Additional keyword arguments (unused, for Kedro compatibility)
-        
-    Returns:
-        Kedro Pipeline with a single evaluation node
-        
-    Inputs:
-        players_hist_merged: Historical player data with features and targets
-        
-    Outputs:
-        metrics: Dictionary mapping gameweek -> evaluation metrics (MAE, RMSE, R2)
-        picked_teams: Dictionary mapping gameweek -> optimal team selections
-        
-    Parameters:
-        model_config: Dict of model configurations ("model_1", "model_2", etc.)
-        model_num: Integer selecting which model config to evaluate
-        min_gameweek: Minimum gameweek to start evaluation from (default: 2)
-        target_col: Name of target column to predict (default: 'next_week_round_points')
     """
     return pipeline([        
         
         node(
-            func=eval_model,
-            inputs=dict(
-                players_hist_merged="df_processed",
-                model_config="params:model_config",
-                model_num="params:model_num",
-                min_gameweek="params:min_gameweek",
-                target_col="params:target_col",
-            ),
-            outputs=["metrics", "picked_teams"],
-            name="eval_model_node",
-        ),
-        node(
-            func=compare_pred_team_to_true_score,
+            func=eval_model_walk_forward,
             inputs=dict(
                 players_hist_merged="players_hist_merged",
-                picked_teams="picked_teams",
-                average_points = "params:average_points"
+                model_config="params:model_config",
+                model_num="params:model_num",
+                rolling_features = "params:rolling_features",
+                average_points = "params:average_points",
+                mlflow_tracking_uri = "params:mlflow_tracking_uri"
             ),
-            outputs="joined_data",
-            name="compare_pred_team_to_true_score",
+            outputs=["metrics_by_gw", "mlflow_run_id"],
+            name="eval_model_node",
+        ),
+
+        node(
+            func=add_plots,
+            inputs=dict(
+                metrics_df="metrics_by_gw",
+                mlflow_run_id = "mlflow_run_id"
+            ),
+            outputs="nothing",
+            name="plot_metrics_by_gw_node",
+        ),
+         node(
+            func=log_average_metrics,
+            inputs=dict(
+                metrics_df="metrics_by_gw",
+                mlflow_run_id = "mlflow_run_id"
+            ),
+            outputs="also_nothing",
+            name="log_average_metrics_node",
         ),
     ])

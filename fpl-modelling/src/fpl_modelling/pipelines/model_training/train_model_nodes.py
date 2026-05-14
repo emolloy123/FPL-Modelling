@@ -20,5 +20,8 @@ def train_model(X_train: pd.DataFrame, y_train: pd.DataFrame, pipeline: sklearn.
                 artifact_path="model",
                 registered_model_name=f"model_gameweek_{predicting_gameweek}",
             )
-
-    return pipeline, run.info.run_id
+    
+        run_info = run.info.run_id
+    else:
+        run_info = None
+    return pipeline, run_info

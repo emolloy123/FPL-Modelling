@@ -14,15 +14,18 @@ def regression_metrics(y_train:np.ndarray, y_test :np.ndarray, y_pred_test :np.n
     model_metrics = model_evaluator.get_model_metrics(y_train, y_test, y_pred_train, y_pred_test,  mlflow_run_id= mlflow_run_id)
 
     fig_test = plot_y_true_vs_pred(y_test, y_pred_test, dataset_label="test")
-    mlflow.log_figure(fig_test, "y_true_vs_pred_test.html")
-
+    
     # Train plot
     fig_train = plot_y_true_vs_pred(y_train, y_pred_train, dataset_label="train")
-    mlflow.log_figure(fig_train, "y_true_vs_pred_train.html")
+    
+
+    if mlflow_run_id:
+        mlflow.log_figure(fig_test, "y_true_vs_pred_test.html")
+        mlflow.log_figure(fig_train, "y_true_vs_pred_train.html")
 
     return model_metrics
 
-def eval_predicted_optimal_team(players_hist_merged: pd.DataFrame, optimiser_res, predicting_gameweek: int, average_points: tp.Dict, mlflow_run_id):
+def eval_predicted_optimal_team(players_hist_merged: pd.DataFrame, optimiser_res, predicting_gameweek: int):
 
     # 1. Get corrected points for any change to captain and/or subsitutions and account for double gameweeks
 
@@ -51,27 +54,31 @@ def eval_predicted_optimal_team(players_hist_merged: pd.DataFrame, optimiser_res
         ).sort_values(by='rank')
 
     # c. Make subsitutions appropriately
-    gw_starters = make_subsitions(data_w_predictions_by_gw)
+    gw_starters = _make_subsitions(data_w_predictions_by_gw)
 
     gw_starters_data = data_w_predictions_by_gw[data_w_predictions_by_gw['player_name'].isin(gw_starters['player_name'])]
 
     print(gw_starters_data[['player_name', 'predicted_next_round_points', 'next_week_round_points']])
 
+    return gw_starters_data
+
+def log_optimal_team_metrics(gw_starters_data, predicting_gameweek, average_points, mlflow_run_id):
     average_points_that_gw = average_points[predicting_gameweek]
 
     # mlflow.start_run(mlflow_run_id)
     fig = plot_pred_vs_true_per_player(gw_starters_data)
-    mlflow.log_figure(fig, "pred_vs_true_per_player.html")
+    if mlflow_run_id:
+        mlflow.log_figure(fig, "pred_vs_true_per_player.html")
 
-    mlflow.log_metrics({
-        'predicted_team_total_true_points': gw_starters_data['next_week_round_points'].sum(),
-        'predicted_team_total_predicted_points': gw_starters_data['predicted_next_round_points'].sum(),
-        'average_points_that_gameweek': average_points_that_gw
-        })
+        mlflow.log_metrics({
+            'predicted_team_total_true_points': gw_starters_data['next_week_round_points'].sum(),
+            'predicted_team_total_predicted_points': gw_starters_data['predicted_next_round_points'].sum(),
+            'average_points_that_gameweek': average_points_that_gw
+            })
 
-    return gw_starters_data
+    return ""
 
-def make_subsitions(df: pd.DataFrame) -> pd.DataFrame:
+def _make_subsitions(df: pd.DataFrame) -> pd.DataFrame:
     """
     Apply FPL autosubs:
     - Replace starters with 0 minutes using bench players

@@ -1,551 +1,133 @@
-"""
-Nodes for evaluating FPL prediction models across historical gameweeks.
+# eval_model_hist_nodes.py
 
-This module provides functions to:
-- Generate predictions on train/test splits
-- Calculate evaluation metrics per gameweek
-- Pick optimal fantasy football teams based on predictions
-- Evaluate models across multiple gameweeks in a time-series manner
-"""
-
-import pandas as pd
-import typing as tp
-import logging
-from collections import defaultdict
-import mlflow
-import numpy as np
-import sklearn
-from sklearn.metrics import (
-    mean_absolute_error,
-    mean_absolute_percentage_error,
-    root_mean_squared_error,
-    r2_score
+from fpl_modelling.pipelines.data_preprocessing.data_processing_nodes import (
+    filter_players_training_data,
+    eng_rolling_avg_features,
+    train_test_split_by_gw,
+    filter_players_prediction_data
 )
+from fpl_modelling.pipelines.model_training.train_model_nodes import train_model
+from fpl_modelling.pipelines.model_prediction.gameweek_prediction_nodes import (
+    model_prediction_train_test,
+    join_back_predictions,
+    get_predicted_optimal_team_next_gameweek,
+)
+from fpl_modelling.pipelines.model_evaluation.eval_model_one_gw import regression_metrics, eval_predicted_optimal_team
+from fpl_modelling.ModelConfig import load_model_config
+from sklearn.base import clone
+import pandas as pd 
+import mlflow
+import typing as tp 
+import plotly.graph_objects as go
 
-from fpl_modelling.pipelines.model_training.train_model_nodes import   train_model
-from fpl_modelling.pipelines.optimisation.pick_team_nodes import pick_optimal_team
-from .ModelEvaluator import ModelEvaluator
-
+import logging 
 logger = logging.getLogger(__name__)
+from .plotting import plot_multi_metrics, plot_metrics_by_gw
 
-def _get_train_test_predictions(
-    test_df: pd.DataFrame,
-    train_df: pd.DataFrame,
-    features: tp.List[str],
-    model: sklearn.pipeline.Pipeline,
-    target_col: str
-) -> tp.Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Generate predictions and extract ground truth for train and test sets.
-    
-    Private helper function - not a Kedro node.
-    
-    Args:
-        test_df: Test dataset with features and target column
-        train_df: Training dataset with features and target column
-        features: List of feature column names to use for prediction
-        model: Trained sklearn pipeline/model
-        target_col: Name of the target column to predict
-        
-    Returns:
-        Tuple containing:
-            - y_pred_test: Model predictions on test set
-            - y_true_test: Actual values for test set
-            - y_pred_train: Model predictions on train set
-            - y_true_train: Actual values for train set
-            
-    Raises:
-        ValueError: If required columns are missing from dataframes
-        KeyError: If specified features are not in dataframes
-    """
-    
-    try:
-        # Generate predictions
-        y_pred_test = model.predict(test_df[features])
-        y_pred_train = model.predict(train_df[features])
-        
-        # Extract ground truth
-        y_true_test = test_df[target_col].values
-        y_true_train = train_df[target_col].values
-        
-        logger.info(
-            f"Generated predictions - Test samples: {len(y_pred_test)}, "
-            f"Train samples: {len(y_pred_train)}"
-        )
-        
-        return y_pred_test, y_true_test, y_pred_train, y_true_train
-        
-    except Exception as e:
-        logger.error(f"{str(e)}")
-        raise
-
-
-def _get_optimal_team_test_prediction(
-    df: pd.DataFrame,
-    y_pred_test: np.ndarray,
-    y_true_test: np.ndarray,
-    objective_col_name: str
-) -> tp.Dict:
-    """
-    Pick optimal fantasy football team based on model predictions.
-        
-    Creates a copy of the input dataframe with prediction columns added,
-    then runs optimization to select the best team.
-    
-    Args:
-        df: Player data for the gameweek
-        y_pred_test: Model predictions for next week points
-        y_true_test: Actual next week points (for comparison)
-        
-    Returns:
-        Dictionary containing the optimal team selection with predicted scores
-        
-    Raises:
-        ValueError: If prediction arrays don't match dataframe length
-    """
-    if len(y_pred_test) != len(df):
-        raise ValueError(
-            f"Prediction length ({len(y_pred_test)}) doesn't match "
-            f"dataframe length ({len(df)})"
-        )
-    
-    if len(y_true_test) != len(df):
-        raise ValueError(
-            f"Ground truth length ({len(y_true_test)}) doesn't match "
-            f"dataframe length ({len(df)})"
-        )
-    
-    try:
-        # Create a copy to avoid modifying the original dataframe
-        df_with_predictions = df.copy()
-        df_with_predictions[objective_col_name] = y_pred_test
-        df_with_predictions['true_next_week_points'] = y_true_test
-
-        # Aggregate to player level (handles DGWs correctly)
-        df_with_predictions = (
-            df_with_predictions
-            .groupby(['player_id'], as_index=False)
-            .agg({
-                "predicted_next_week_points": 'sum',              # predicted points
-                'true_next_week_points': 'sum',         # actual points
-                'transfer_cost': 'first',
-                'position_name': 'first',
-                'team_id': 'first',
-                'player_name': 'first',
-                'round': 'first'
-            })
-        )
-        
-        # Run optimization without printing (keep output clean for Kedro logs)
-        opt_team = pick_optimal_team(df_with_predictions, objective_col=objective_col_name, print_sol=False)
-        
-        logger.info(f"Optimal team selected successfully")
-        
-        return opt_team
-        
-    except Exception as e:
-        logger.error(f"Error picking optimal team: {str(e)}")
-        raise
-
-
-def eval_model(
+def eval_model_walk_forward(
     players_hist_merged: pd.DataFrame,
     model_config: tp.Dict,
     model_num: int,
-    min_gameweek: int = 2,
-    target_col: str = 'next_week_round_points'
-) -> tp.Tuple[tp.Dict, tp.Dict]:
-    """
-    Evaluate a model across multiple gameweeks using time-series cross-validation.
+    rolling_features: tp.Dict,
+    average_points: tp.Dict,
+    mlflow_tracking_uri
     
-    Main Kedro node function.
-    
-    For each gameweek from min_gameweek to the last available gameweek:
-    1. Split data into train (all prior gameweeks) and test (current gameweek)
-    2. Train model on training data
-    3. Generate predictions and calculate metrics
-    4. Pick optimal team based on predictions
-    
-    Args:
-        players_hist_merged: Historical player data with features and targets.
-            Required columns: 'round' and the target column specified by target_col,
-            plus all features specified in model_config
-        model_config: Configuration dictionary containing model specifications,
-            preprocessing steps, and features for different model variants
-        model_num: Index of the model configuration to use from model_config
-        min_gameweek: Minimum gameweek to start evaluation from. Defaults to 2
-            (requires at least one previous gameweek for training)
-        target_col: Name of the target column to predict. Defaults to 
-            'next_week_round_points'
+):
+    base_pipeline, features = load_model_config(model_config, model_num)
+    max_gameweek = int(players_hist_merged["round"].max())
+
+    metrics_by_gw, picked_teams = {}, {}
+
+    if mlflow_tracking_uri:
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
+        mlflow.set_experiment(f"walk_forward_cross_validation")
+
+    with mlflow.start_run(run_name=f"model_{model_num}") as parent_run:
+
+        for gw in range(5, max_gameweek):
+
+            with mlflow.start_run(run_name=f"gw_{gw}", nested=True):
+
+                logger.info(f"--- Gameweek {gw} ---")
+                try:
+                    # -- data_preprocessing_pipeline nodes --
+                    df_visible = players_hist_merged[players_hist_merged["round"] <= gw].copy()
+                    df_filtered = filter_players_training_data(df_visible, model_config, model_num)
+                    df_filtered = filter_players_prediction_data(df_filtered)
+                    df_processed = eng_rolling_avg_features(df_filtered, rolling_features)
+                    X_train, y_train, X_test, y_test, df_test, df_train = train_test_split_by_gw(
+                        model_num, df_processed, model_config, predicting_gameweek=gw
+                    )
+
+                    # -- train_model_pipeline nodes --
+                    fold_pipeline = clone(base_pipeline)
+                    trained_pipeline, _ = train_model(
+                        X_train, y_train,
+                        pipeline=fold_pipeline,
+                        predicting_gameweek=gw,
+                        mlflow_tracking_uri=None,
+                    )
+                    cat_features = model_config[model_num]['features']['cat_features']
+                    logger.info(f"GW {gw} - NaNs in cat features:\n{X_test[cat_features].isna().sum()}")
+                    logger.info(f"GW {gw} - unique values in cat features:\n{X_test[cat_features].apply(lambda x: x.unique())}")
+
+                    # -- gameweek_prediction_pipeline nodes --
+                    y_pred_train, y_pred_test = model_prediction_train_test(trained_pipeline, X_train, X_test)
+                    df_train_w_pred, df_test_w_pred = join_back_predictions(df_train, df_test, y_pred_train, y_pred_test)
+                    optimal_team = get_predicted_optimal_team_next_gameweek(df_test_w_pred)
+
+                    # -- eval_model_one_gw_pipeline nodes --
+                    metrics = regression_metrics(y_train, y_test, y_pred_test, y_pred_train, gw, mlflow_run_id=None)
+                    gw_starters_data = eval_predicted_optimal_team(players_hist_merged, optimal_team, gw)
+
+
+                    metrics = add_optimal_team_metrics(gw_starters_data, average_points, gw, metrics)
+                    mlflow.log_metrics(metrics, step=gw)
+
+                    metrics_by_gw[gw] = metrics
+
+                    picked_teams[gw] = gw_starters_data
+
+                except Exception as e:
+                    logger.error(f"GW {gw} failed: {e}", exc_info=True)
+                    continue
+
+    return pd.DataFrame(metrics_by_gw).T, parent_run.info.run_id
+
+
+def add_optimal_team_metrics(gw_starters_data: pd.DataFrame, average_points: tp.Dict, predicting_gameweek: int, metrics: tp.Dict):
+     
+    metrics['predicted_team_total_true_points'] = gw_starters_data['next_week_round_points'].sum()
+    metrics['predicted_team_total_predicted_points'] = gw_starters_data['predicted_next_round_points'].sum()
+    metrics['average_points_that_gw'] = average_points[predicting_gameweek]
+
+
+    return metrics
+
+def log_average_metrics(metrics_df: pd.DataFrame, mlflow_run_id):
+    avg_metrics = {}
+    with mlflow.start_run(run_id=mlflow_run_id):
+        for col in metrics_df.columns:
+            avg_metrics[f'avg_{col}'] = metrics_df[col].mean()
+
         
-    Returns:
-        Tuple containing:
-            - gameweek_metrics: Dict mapping gameweek -> evaluation metrics 
-              (MAE, RMSE, R2, etc. for both train and test sets)
-            - picked_teams: Dict mapping gameweek -> optimal team selection
-              with predicted and actual point values
-              
-    Raises:
-        ValueError: If dataframe is empty, missing required columns,
-                   or has insufficient gameweeks
-        KeyError: If model_num doesn't exist in model_config
-        
-    """
-    # Validate input dataframe
-    if players_hist_merged.empty:
-        raise ValueError("Input dataframe 'players_hist_merged' is empty")
-    
-    # Check for structural columns and target
-    required_cols = ['round'] + [target_col]
-    for col in required_cols:
-        if col not in players_hist_merged.columns:
-            raise ValueError(
-                f"Input dataframe missing required column: '{col}'"
-            )
-    
-    max_gameweek = players_hist_merged['round'].max()
-    # max_gameweek = 19
-    min_gameweek_data = players_hist_merged['round'].min()
-    
-    if pd.isna(max_gameweek) or pd.isna(min_gameweek_data):
-        raise ValueError("'round' column contains NaN values")
-    
-    if max_gameweek < min_gameweek + 1:
-        raise ValueError(
-            f"Insufficient gameweeks for evaluation. "
-            f"Need at least {min_gameweek + 1}, found {max_gameweek}"
-        )
-    
-    logger.info(
-        f"Starting model evaluation from gameweek {min_gameweek} "
-        f"to {max_gameweek} (model_num={model_num}, target={target_col})"
-    )
-    
-    # Load model configuration
-    try:
-        pipeline, features = load_config(model_config, model_num)
-        logger.info(f"Loaded model config with {len(features)} features")
-    except KeyError:
-        raise KeyError(
-            f"model_num {model_num} not found in model_config. "
-            f"Available models: {list(model_config.keys())}"
-        )
-    except Exception as e:
-        logger.error(f"Error loading model config: {str(e)}")
-        raise
-    
-    # # Validate all features exist in dataframe
-    # missing_features = set(features) - set(players_hist_merged.columns)
-    # if missing_features:
-    #     raise ValueError(
-    #         f"Model requires features not in dataframe: {missing_features}"
-    #     )
-    
-    # Initialize containers for results
-    metric_handler = Metrics()
-    picked_teams = {}
-    failed_gameweeks = []
-    
-    # Evaluate model for each gameweek
-    mlflow.set_experiment("eval_model_hist")
-    for gameweek in range(min_gameweek, int(max_gameweek)):
-        logger.info(f"{'='*20} Gameweek {gameweek} {'='*20}")
-        
-        try:
-            # Create train/test split
-            train_df, test_df = train_test_split(
-                df=players_hist_merged,
-                predicting_gameweek=gameweek
-            )
-            
-            if train_df.empty:
-                logger.warning(
-                    f"Skipping gameweek {gameweek}: empty training set"
-                )
-                failed_gameweeks.append(gameweek)
-                continue
-                
-            if test_df.empty:
-                logger.warning(
-                    f"Skipping gameweek {gameweek}: empty test set"
-                )
-                failed_gameweeks.append(gameweek)
-                continue
-            
-            logger.debug(
-                f"Train size: {len(train_df)}, Test size: {len(test_df)}"
-            )
-            
-            # Train model
-            model = train_model(
-                train_df=train_df,
-                pipeline=pipeline,
-                features=features,
-                predicting_gameweek=gameweek,
-                target_col=target_col,
-                mlflow_tracking_uri=None
-            )
-            
-            # Generate predictions
-            y_pred_test, y_true_test, y_pred_train, y_true_train = \
-                _get_train_test_predictions(test_df, train_df, features, model, target_col)
-            
-            # Calculate metrics
-            metric_handler.calculate_metrics_at_gameweek(
-                gameweek,
-                y_pred_test,
-                y_true_test,
-                y_pred_train,
-                y_true_train
-            )
-            
-            # Pick optimal team
-            picked_teams[gameweek] = _get_optimal_team_test_prediction(
-                test_df,
-                y_pred_test,
-                y_true_test,
-                objective_col_name="predicted_next_week_points"
-            )
-            
-            
-            logger.info(f"Gameweek {gameweek} evaluation completed successfully")
-            
-        except Exception as e:
-            logger.error(
-                f"Error evaluating gameweek {gameweek}: {str(e)}",
-                exc_info=True
-            )
-            failed_gameweeks.append(gameweek)
-            continue
-    
-    # Summary logging
-    total_gameweeks = int(max_gameweek) - min_gameweek
-    successful_gameweeks = total_gameweeks - len(failed_gameweeks)
-    
-    logger.info(
-        f"Evaluation complete: {successful_gameweeks}/{total_gameweeks} "
-        f"gameweeks successful"
-    )
-    
-    if failed_gameweeks:
-        logger.warning(f"Failed gameweeks: {failed_gameweeks}")
-    
-    if successful_gameweeks == 0:
-        raise RuntimeError(
-            "All gameweeks failed evaluation. Check logs for details."
-        )
-    
-    return metric_handler.gameweek_metrics, picked_teams
+        avg_metrics['sum_predicted_team_true_points'] = metrics_df['predicted_team_total_true_points'].sum()
+        avg_metrics['sum_average_points'] = metrics_df['average_points_that_gw'].sum()
+        avg_metrics['sum_predicted_team_predicted_points'] = metrics_df['predicted_team_total_predicted_points'].sum()
+
+        mlflow.log_metrics(avg_metrics)
+
+    return ""
+
+def add_plots(metrics_df, mlflow_run_id):
+
+    plot_multi_metrics(metrics_df, ["predicted_team_total_true_points", "average_points_that_gw"], mlflow_run_id, title="Predicted vs Average Team" )
+    plot_metrics_by_gw(metrics_df, mlflow_run_id)
+
+    return " "
 
 
-def store_gameweek_predictions(picked_team_gw, players_hist_merged, gameweek):
-
-    # Groups player id by gameweek to handle double gameweeks
-    true_players_stats = (
-        players_hist_merged[
-            players_hist_merged['round'] == gameweek
-        ]
-        .groupby('player_id', as_index=False)
-        .agg({
-            'player_name': 'first',
-            'player_id': 'first',
-            'next_week_round_points': 'sum',
-            'next_week_round_minutes': 'sum',
-            'position_name': 'first'
-        })
-    )
-
-    # filter to players picked by model
-    true_players_stats = true_players_stats[
-            true_players_stats['player_name'].isin(picked_team_gw)
-        ]
-
-    # Merge actual stats with predictions
-    joined_data = true_players_stats.merge(
-            predictions, 
-            on='player_name', 
-            how='inner'
-        ).sort_values(by='rank')
-    
-def compare_pred_team_to_true_score(picked_teams: tp.Dict, players_hist_merged: pd.DataFrame, average_points: tp.Dict):
-
-    all_joined_data = []
-    true_points_list, avg_points, pred_points_list = [],[],[]
-    for gameweek, gw_team in picked_teams.items():
-        picked_team_gw = gw_team['squad']  # Assuming this contains player names
-       
-        # Filter for this gameweek and these players
-        true_players_stats = (
-            players_hist_merged[
-                players_hist_merged['round'] == gameweek
-            ]
-            .groupby('player_id', as_index=False)
-            .agg({
-                'player_name': 'first',
-                'player_id': 'first',
-                'next_week_round_points': 'sum',
-                'next_week_round_minutes': 'sum',
-                'position_name': 'first'
-            })
-        )
-
-        true_players_stats = true_players_stats[
-            true_players_stats['player_name'].isin(picked_team_gw)
-        ]
-        # If squad_ranking is in gw_team:
-        predictions = gw_team['squad_ranking'][['player_name', 'predicted_next_week_points', 'rank']]
-        
-        
-        # Merge actual stats with predictions
-        joined_data = true_players_stats.merge(
-            predictions, 
-            on='player_name', 
-            how='inner'
-        ).sort_values(by='rank')
-                
-        all_joined_data.append(joined_data)
-
-        logger.info(f"{'='*20} Gameweek {gameweek} {'='*20}")
-        gw_starters = make_subsitions(joined_data)
-        print('gw_starters')
-        print(gw_starters)
-        print('joined_Data')
-        print('joined_data')
-        # gw_starters = joined_data[joined_data['rank']<=11]
-        true_points = gw_starters['next_week_round_points'].sum() + gw_starters[gw_starters['rank']==gw_starters['rank'].min()]['next_week_round_points'].values
-        pred_points = gw_starters['predicted_next_week_points'].sum() + gw_starters[gw_starters['rank']==gw_starters['rank'].min()]['predicted_next_week_points'].values
-
-        print('true_points', true_points)
-        print('pred_points', pred_points)
-
-        logger.info(f'Actual Total Points {true_points[0]}, Average Total Points {average_points[gameweek]}, Predicted Total Points {int(gw_team['expected_points'])},')
-        true_points_list.append(true_points[0])
-        pred_points_list.append(pred_points[0])
-        avg_points.append(average_points[gameweek])
-        print('JOINED DATA')
-        print(joined_data[['player_name', 'next_week_round_minutes', 'rank', 'next_week_round_points', 'predicted_next_week_points']])
-        print(joined_data.columns)
-    
-    gws = picked_teams.keys()
-    # print(gws, true_points_list, pred_points, avg_points)
-    # Create base df
-    comparison_df = pd.DataFrame(
-        {
-            "gameweek": gws,
-            "true_points": true_points_list,
-            "pred_points": pred_points_list,
-            "avg_points": avg_points,
-        }
-    ).sort_values("gameweek")
-
-    # Cumulative sums (ONLY on actual gameweeks)
-    comparison_df["cumsum_true_points"] = comparison_df["true_points"].cumsum()
-    comparison_df["cumsum_pred_points"] = comparison_df["pred_points"].cumsum()
-    comparison_df["cumsum_avg_points"] = comparison_df["avg_points"].cumsum()
-
-    # Total row
-    total_row = pd.DataFrame(
-    {
-        "gameweek": ["TOTAL"],
-        "true_points": [comparison_df["true_points"].sum()],
-        "pred_points": [comparison_df["pred_points"].sum()],
-        "avg_points": [comparison_df["avg_points"].sum()],
-        "cumsum_true_points": [comparison_df["true_points"].sum()],
-        "cumsum_pred_points": [comparison_df["pred_points"].sum()],
-        "cumsum_avg_points": [comparison_df["avg_points"].sum()],
-    }
-    )
-
-    # Append total
-    comparison_df = pd.concat(
-        [comparison_df, total_row],
-        ignore_index=True
-    )
-
-    print(comparison_df)
-    return pd.concat(all_joined_data, ignore_index=True)
 
 
-def make_subsitions(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Apply FPL autosubs:
-    - Replace starters with 0 minutes using bench players
-    - Respect formation constraints
-    - Bench priority based on rank (lower rank = higher priority)
-    """
 
-    df = df.copy()
 
-    # Split starters and bench
-    starters = df[df['rank'] <= 11].copy()
-    bench = df[df['rank'] > 11].copy().sort_values('rank')  # priority order
-
-    # Formation constraints
-    MIN_FORMATION = {
-        'Goalkeeper': 1,
-        'Defender': 3,
-        'Midfielder': 2,
-        'Forward': 1
-    }
-
-    MAX_FORMATION = {
-        'Goalkeeper': 1,
-        'Defender': 5,
-        'Midfielder': 5,
-        'Forward': 3
-    }
-
-    def is_valid_formation(players: pd.DataFrame) -> bool:
-        counts = players['position_name'].value_counts().to_dict()
-        for pos in MIN_FORMATION:
-            if counts.get(pos, 0) < MIN_FORMATION[pos]:
-                return False
-            if counts.get(pos, 0) > MAX_FORMATION[pos]:
-                return False
-        return True
-
-    # --- STEP 1: Handle GK separately ---
-    gk = starters[starters['position_name'] == 'Goalkeeper']
-
-    if len(gk) == 1 and gk.iloc[0]['next_week_round_minutes'] == 0:
-        bench_gk = bench[bench['position_name'] == 'Goalkeeper']
-        if not bench_gk.empty:
-            sub = bench_gk.iloc[0]
-
-            # swap
-            starters = starters[starters['player_id'] != gk.iloc[0]['player_id']]
-            starters = pd.concat([starters, sub.to_frame().T])
-
-            bench = bench[bench['player_id'] != sub['player_id']]
-
-    # --- STEP 2: Handle outfield players ---
-    zero_min_starters = starters[
-        (starters['next_week_round_minutes'] == 0) &
-        (starters['position_name'] != 'Goalkeeper')
-    ].copy()
-
-    for _, starter in zero_min_starters.iterrows():
-
-        replaced = False
-
-        for _, sub in bench.iterrows():
-
-            temp_starters = starters[
-                starters['player_id'] != starter['player_id']
-            ]
-            temp_starters = pd.concat([temp_starters, sub.to_frame().T])
-
-            if is_valid_formation(temp_starters):
-                # perform substitution
-                starters = temp_starters
-                bench = bench[bench['player_id'] != sub['player_id']]
-                replaced = True
-                break
-
-        # if no valid sub found → player stays (FPL behaviour)
-
-    return starters
-
-def compare_player_points(joined_data): 
-
-    pass

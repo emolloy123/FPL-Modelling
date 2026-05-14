@@ -31,15 +31,25 @@ class ModelPipelineBuilder:
         steps_cfg = preprocessor_cfg.get("steps", [])
 
         if not steps_cfg:
-            return None  # allow for cases without preprocessing
+            return None
 
         transformers = []
+
         for step in steps_cfg:
             transformer_class = self._import_from_string(step["transformer"])
-            transformer = transformer_class()
-            transformers.append((step["name"], transformer, step["columns"]))
 
-        return ColumnTransformer(transformers=transformers, remainder="drop")
+            params = step.get("params", {})
+
+            transformer = transformer_class(**params)
+
+            transformers.append(
+                (step["name"], transformer, step["columns"])
+            )
+
+        return ColumnTransformer(
+            transformers=transformers,
+            remainder="drop"
+        )
 
     def _build_model(self):
         """Instantiate the model from config."""

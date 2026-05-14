@@ -20,6 +20,7 @@ model_config:
         - players_team
         - next_week_opponent_team_name
         - position_name
+        - player_name
 
     preprocessor:
       steps:
@@ -32,11 +33,15 @@ model_config:
             - selected
         - name: cat
           transformer: sklearn.preprocessing.OneHotEncoder
+          params:
+            handle_unknown: ignore
+            sparse_output: false
           columns:
             - next_week_is_home
             - players_team
             - next_week_opponent_team_name
             - position_name
+            - player_name
 
 
     model: 

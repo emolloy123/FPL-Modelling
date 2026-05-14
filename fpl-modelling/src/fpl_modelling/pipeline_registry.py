@@ -14,7 +14,7 @@ from fpl_modelling.pipelines.data_preprocessing.data_preprocessing_pipeline impo
 
 from fpl_modelling.pipelines.data_engineering.create_fixtures_table_pipeline import create_fixtures_table_pipeline
 from fpl_modelling.pipelines.model_prediction.gameweek_prediction_pipeline import create_gameweek_prediction_pipeline 
-# from fpl_modelling.pipelines.model_evaluation.eval_model_hist_pipeline import create_eval_model_hist_pipeline
+from fpl_modelling.pipelines.model_evaluation.eval_model_hist_pipeline import create_eval_model_hist_pipeline
 from fpl_modelling.pipelines.model_evaluation.eval_model_one_gw_pipeline import create_eval_model_one_gw_pipeline
 
 def register_pipelines() -> dict[str, Pipeline]:
@@ -42,7 +42,7 @@ def register_pipelines() -> dict[str, Pipeline]:
     fixtures_table_pipeline = create_fixtures_table_pipeline()
 
     gameweek_prediction_pipeline = create_gameweek_prediction_pipeline()
-    # eval_model_hist_pipeline = create_eval_model_hist_pipeline()
+    eval_model_hist_pipeline = create_eval_model_hist_pipeline()
     eval_model_one_gw_pipeline = create_eval_model_one_gw_pipeline()
     return {
         # UPDATING TABLES
@@ -63,11 +63,10 @@ def register_pipelines() -> dict[str, Pipeline]:
         # MODEL EVALUATION
         # "eval_model": eval_model_hist_pipeline,
         "eval_model": data_preprocessing_pipeline + train_model_pipeline + gameweek_prediction_pipeline + eval_model_one_gw_pipeline,
+        "eval_model_hist": eval_model_hist_pipeline,
 
         # ARCHIVE
         "pick_most_selected_team": pick_most_selected_team_pipeline,
         "get_team": get_team_pipeline,
-
-
 
     }
