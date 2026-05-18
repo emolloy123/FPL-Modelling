@@ -2,9 +2,9 @@ import typing as tp
 import pandas as pd 
 import sklearn 
 import mlflow
-
+from .utils import flatten_model_config_for_mlflow
 def train_model(X_train: pd.DataFrame, y_train: pd.DataFrame, pipeline: sklearn.pipeline.Pipeline, 
-                predicting_gameweek: int, mlflow_tracking_uri: str = None):
+                predicting_gameweek: int, model_config = None, model_num = None, mlflow_tracking_uri: str = None):
 
     if mlflow_tracking_uri:
         mlflow.set_tracking_uri(mlflow_tracking_uri)
@@ -14,6 +14,15 @@ def train_model(X_train: pd.DataFrame, y_train: pd.DataFrame, pipeline: sklearn.
 
     if mlflow_tracking_uri:
         with mlflow.start_run(run_name="fpl_model_training") as run:
+
+            mlflow.log_params(flatten_model_config_for_mlflow(model_config, model_num))
+
+            # Log training context
+            mlflow.log_params({
+                "predicting_gameweek": predicting_gameweek,
+                "n_train_samples": len(X_train),
+                "train_gameweeks": f"1-{predicting_gameweek - 1}",
+            })
 
             model_info = mlflow.sklearn.log_model(
                 sk_model=pipeline,

@@ -22,7 +22,9 @@ def create_train_model_pipeline(**kwargs) -> Pipeline:
                 y_train = "y_train",
                 pipeline="pipeline",
                 mlflow_tracking_uri = "params:mlflow_tracking_uri",
-                predicting_gameweek = "params:predicting_gameweek"
+                predicting_gameweek = "params:predicting_gameweek",
+                model_config = "params:model_config",
+                model_num = "params:model_num"
             ),
             outputs=["trained_pipeline", "mlflow_run_id"],
             name="train_model_node",
