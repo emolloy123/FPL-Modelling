@@ -1,0 +1,33 @@
+# conf/base/catalog.yml
+
+# Raw tables from FPL API
+players:
+  type: pandas.ParquetDataset
+  filepath: s3://fpl-modelling-data/data/02_intermediate/players.parquet
+  credentials: s3_credentials
+
+teams:
+  type: pandas.ParquetDataset
+  filepath: s3://fpl-modelling-data/data/02_intermediate/teams.parquet
+  credentials: s3_credentials
+
+positions:
+  type: pandas.ParquetDataset
+  filepath: s3://fpl-modelling-data/data/02_intermediate/positions.parquet
+  credentials: s3_credentials
+
+players_hist:
+  type: pandas.ParquetDataset
+  filepath: s3://fpl-modelling-data/data/02_intermediate/players_hist.parquet
+  credentials: s3_credentials
+
+fixtures:
+  type: pandas.ParquetDataset
+  filepath: s3://fpl-modelling-data/data/02_intermediate/fixtures.parquet
+  credentials: s3_credentials
+
+# Model outputs
+predicted_optimal_team_next_gw:
+  type: pandas.ParquetDataset
+  filepath: s3://fpl-modelling-data/data/07_model_output/predicted_optimal_team.parquet
+  credentials: s3_credentials

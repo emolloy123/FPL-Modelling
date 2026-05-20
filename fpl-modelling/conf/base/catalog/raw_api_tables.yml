@@ -1,59 +1,59 @@
-# SQLite Database Tables
-# Note: All tables share the same database file but different table names
+# # SQLite Database Tables
+# # Note: All tables share the same database file but different table names
 
-players:
-  type: pandas.SQLTableDataset
-  credentials: db_credentials
-  table_name: players
-  load_args:
-    index_col: player_id
-  save_args:
-    index: false
-    if_exists: replace  # Use 'append' for incremental data
+# players:
+#   type: pandas.SQLTableDataset
+#   credentials: db_credentials
+#   table_name: players
+#   load_args:
+#     index_col: player_id
+#   save_args:
+#     index: false
+#     if_exists: replace  # Use 'append' for incremental data
 
-teams:
-  type: pandas.SQLTableDataset
-  credentials: db_credentials
-  table_name: teams
-  load_args:
-    index_col: team_id
-  save_args:
-    index: false
-    if_exists: replace
+# teams:
+#   type: pandas.SQLTableDataset
+#   credentials: db_credentials
+#   table_name: teams
+#   load_args:
+#     index_col: team_id
+#   save_args:
+#     index: false
+#     if_exists: replace
 
-positions:
-  type: pandas.SQLTableDataset
-  credentials: db_credentials
-  table_name: positions
-  load_args:
-    index_col: position_id
-  save_args:
-    index: false
-    if_exists: replace
+# positions:
+#   type: pandas.SQLTableDataset
+#   credentials: db_credentials
+#   table_name: positions
+#   load_args:
+#     index_col: position_id
+#   save_args:
+#     index: false
+#     if_exists: replace
 
-players_hist:
-  type: pandas.SQLTableDataset
-  credentials: db_credentials
-  table_name: players_hist
-  load_args:
-    index_col: player_id
-  save_args:
-    index: false
-    if_exists: replace
+# players_hist:
+#   type: pandas.SQLTableDataset
+#   credentials: db_credentials
+#   table_name: players_hist
+#   load_args:
+#     index_col: player_id
+#   save_args:
+#     index: false
+#     if_exists: replace
 
-my_current_team:
-  type: pandas.SQLTableDataset
-  credentials: db_credentials
-  table_name: my_current_team
-  load_args:
-    index_col: player_id
-  save_args:
-    index: false
-    if_exists: replace
+# my_current_team:
+#   type: pandas.SQLTableDataset
+#   credentials: db_credentials
+#   table_name: my_current_team
+#   load_args:
+#     index_col: player_id
+#   save_args:
+#     index: false
+#     if_exists: replace
   
-fixtures:
-  type: pandas.SQLTableDataset
-  credentials: db_credentials
-  table_name: fixtures
-  save_args:
-    if_exists: replace
+# fixtures:
+#   type: pandas.SQLTableDataset
+#   credentials: db_credentials
+#   table_name: fixtures
+#   save_args:
+#     if_exists: replace

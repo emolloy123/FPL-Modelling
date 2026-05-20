@@ -32,8 +32,7 @@ class FPLClient:
         endpoint = f"{self.base_url}element-summary/{player_id}/"
 
         r = requests.get(endpoint).json()
-
-        return pd.json_normalize(r['history'])
+        return  pd.json_normalize(r.get("history", []))
 
     def get_gameweek_fixtures(self, gameweek_number, keep_stats=False):
         endpoint = f"{self.base_url}fixtures/?event={gameweek_number}"
