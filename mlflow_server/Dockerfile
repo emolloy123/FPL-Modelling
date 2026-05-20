@@ -11,5 +11,5 @@ EXPOSE 8080
 CMD mlflow server \
     --host 0.0.0.0 \
     --port 8080 \
-    --backend-store-uri sqlite:///mlflow.db \
+    --backend-store-uri ${DATABASE_URL} \
     --default-artifact-root s3://fpl-modelling-data/mlflow/artifacts/
