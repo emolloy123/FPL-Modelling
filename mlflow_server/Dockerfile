@@ -1,8 +1,12 @@
-# mlflow_server/Dockerfile
 FROM python:3.11-slim
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+
+# Install only what mlflow server actually needs
+RUN pip install --no-cache-dir \
+    mlflow==2.13.0 \
+    boto3 \
+    pymysql
+
 EXPOSE 8080
 CMD mlflow server \
     --host 0.0.0.0 \
