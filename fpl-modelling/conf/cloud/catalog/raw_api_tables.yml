@@ -1,0 +1,43 @@
+# S3 storage. Overrides the SQLite tables in conf/base when you run with:
+#
+#   kedro run --env cloud --params season=2026-27 --pipeline update_tables
+#
+# Each season is written to its own path, so a refresh can't overwrite earlier
+# seasons. `season` has no default on purpose: forgetting it fails the run
+# instead of writing to the wrong place. Use the format FPLClient.get_season()
+# returns, e.g. "2026-27".
+#
+# Credentials: put `s3_credentials` in conf/cloud/credentials.yml (gitignored),
+# because conf/local is not loaded when --env cloud is set.
+#
+# Caveat: the SQL query datasets in conf/base/catalog/query_tables.yml
+# (players_hist_merged etc.) still read the local SQLite database, so in this
+# environment the training and prediction pipelines will not see S3 data yet.
+
+_s3_raw: &s3_raw
+  type: pandas.ParquetDataset
+  credentials: s3_credentials
+
+players:
+  <<: *s3_raw
+  filepath: s3://fpl-modelling-data/data/02_intermediate/season=${runtime_params:season}/players.parquet
+
+teams:
+  <<: *s3_raw
+  filepath: s3://fpl-modelling-data/data/02_intermediate/season=${runtime_params:season}/teams.parquet
+
+positions:
+  <<: *s3_raw
+  filepath: s3://fpl-modelling-data/data/02_intermediate/positions.parquet
+
+players_hist:
+  <<: *s3_raw
+  filepath: s3://fpl-modelling-data/data/02_intermediate/season=${runtime_params:season}/players_hist.parquet
+
+fixtures:
+  <<: *s3_raw
+  filepath: s3://fpl-modelling-data/data/02_intermediate/season=${runtime_params:season}/fixtures.parquet
+
+predicted_optimal_team_next_gw:
+  <<: *s3_raw
+  filepath: s3://fpl-modelling-data/data/07_model_output/season=${runtime_params:season}/predicted_optimal_team.parquet

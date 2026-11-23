@@ -12,4 +12,6 @@ def get_fixtures() -> pd.DataFrame:
         fixtures_df["gameweek"] = gw  # optional but often useful
         df_list.append(fixtures_df)
 
-    return pd.concat(df_list, ignore_index=True)
+    fixtures = pd.concat(df_list, ignore_index=True)
+    fixtures["season"] = client.get_season()
+    return fixtures

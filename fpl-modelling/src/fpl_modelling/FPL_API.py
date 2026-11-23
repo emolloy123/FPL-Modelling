@@ -16,7 +16,21 @@ class FPLClient:
     def get_players(self):
         """Return current players dataframe."""
         r = self.get_metadata()
-        return pd.json_normalize(r['elements'])
+        # price_change_projections was added to the API in 2026/27; it's a nested
+        # field that SQL can't store. errors="ignore" keeps older payloads working.
+        return pd.json_normalize(r['elements']).drop(
+            columns=["price_change_projections"], errors="ignore"
+        )
+
+    def get_season(self) -> str:
+        """Return the current season label, e.g. "2026-27".
+
+        Derived from the GW1 deadline, so it changes automatically when the
+        API rolls over to a new season.
+        """
+        events = self.get_metadata()["events"]
+        start_year = pd.Timestamp(events[0]["deadline_time"]).year
+        return f"{start_year}-{(start_year + 1) % 100:02d}"
     
     def get_teams(self):
         """Return current teams dataframe."""

@@ -21,7 +21,14 @@ def fetch_player(row, client) -> pd.DataFrame:
 def create_player_gw_hist_table(
     db_players: pd.DataFrame
 ) -> pd.DataFrame:
-    """Fetch gameweek history for all players and combine into one dataframe."""
+    """Fetch gameweek history for all players and combine into one dataframe.
+
+    The FPL API only serves gameweek history for the current season, so only
+    current-season players are fetched. ``db_players`` holds every season, and
+    player IDs are reassigned each season.
+    """
+    season = FPLClient().get_season()
+    db_players = db_players[db_players["season"] == season]
     df_list = []
 
     with ThreadPoolExecutor(max_workers=20) as executor:  # tune worker count
@@ -33,5 +40,6 @@ def create_player_gw_hist_table(
             df_list.append(f.result())
 
     player_gw_hist = pd.concat(df_list, ignore_index=True)
-    
+    player_gw_hist["season"] = season
+
     return player_gw_hist

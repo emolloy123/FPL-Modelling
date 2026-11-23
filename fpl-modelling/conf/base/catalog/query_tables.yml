@@ -28,8 +28,9 @@ players_merged:
     pos.singular_name_short AS position_name_abbr
 
     FROM players p
-    LEFT JOIN teams t ON p.team_id = t.team_id
+    LEFT JOIN teams t ON p.team_id = t.team_id AND p.season = t.season
     LEFT JOIN positions pos ON p.position_id = pos.position_id
+    WHERE p.season = (SELECT MAX(season) FROM players)
 
   
 # players_hist_merged:
@@ -96,11 +97,100 @@ players_merged:
 
 #     ORDER BY ph.player_id, ph.round;
 
+# players_hist_merged:
+#   type: kedro_datasets.pandas.SQLQueryDataset
+#   credentials: db_credentials
+#   sql: |
+#     SELECT
+#         ph.player_id,
+#         p.player_name,
+#         p.web_name,
+#         p.first_name,
+#         p.second_name,
+#         ph.team_id,
+#         t.team_name AS players_team,
+#         ph.was_home,
+
+#         -- player-relative scores
+#         CASE WHEN ph.was_home = 1 THEN ph.team_h_score ELSE ph.team_a_score END AS players_team_score,
+#         CASE WHEN ph.was_home = 1 THEN ph.team_a_score ELSE ph.team_h_score END AS opponent_team_score,
+
+#         ph.round,
+#         ph.minutes AS round_minutes,
+#         ph.total_points AS round_points,
+#         ph.value/10 AS transfer_cost,
+#         ph.transfers_balance,
+#         ph.selected,
+#         ph.transfers_in,
+#         ph.transfers_out,
+#         ph.ict_index,
+#         ph.position_id,
+#         pos.position_name,
+#         pos.singular_name_short AS position_name_abbr,
+
+#         LEAD(ph.total_points) 
+#         OVER (PARTITION BY ph.player_id ORDER BY ph.round) 
+#         AS next_week_round_points,
+
+#         LEAD(ph.minutes) 
+#         OVER (PARTITION BY ph.player_id ORDER BY ph.round) 
+#         AS next_week_round_minutes,
+
+#         -- cumulative sums per player
+#         SUM(ph.minutes) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_minutes,
+#         SUM(ph.total_points) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_points,
+#         SUM(ph.ict_index) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_ict_index,
+#         SUM(ph.transfers_in) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_transfers_in,
+#         SUM(ph.transfers_out) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_transfers_out,
+
+#         -- next-week fixture info
+#         CASE 
+#             WHEN ph.team_id = nf.team_h THEN 1
+#             WHEN ph.team_id = nf.team_a THEN 0
+#         END AS next_week_is_home,
+
+#         opp_team.team_name AS next_week_opponent_team_name,
+
+#         COUNT(nf.id) OVER (
+#         PARTITION BY ph.player_id, ph.round
+#         ) AS next_week_fixture_count,
+
+#         CASE 
+#             WHEN COUNT(nf.id) OVER (
+#                 PARTITION BY ph.player_id, ph.round
+#             ) > 1 THEN 1
+#             ELSE 0
+#         END AS next_week_dgw
+
+#     FROM players_hist ph
+#     LEFT JOIN players p ON ph.player_id = p.player_id
+#     LEFT JOIN teams t ON ph.team_id = t.team_id
+#     LEFT JOIN positions pos ON ph.position_id = pos.position_id
+
+#     -- join fixtures for next week
+#     LEFT JOIN fixtures nf
+#         ON ph.round + 1 = nf.gameweek
+#         AND (ph.team_id = nf.team_h OR ph.team_id = nf.team_a)
+
+#     -- join teams table to get next week opponent name
+#     LEFT JOIN teams opp_team
+#         ON opp_team.team_id = CASE 
+#             WHEN ph.team_id = nf.team_h THEN nf.team_a
+#             WHEN ph.team_id = nf.team_a THEN nf.team_h
+#         END 
+
+#     --ORDER BY ph.player_id, ph.round;
+
 players_hist_merged:
   type: kedro_datasets.pandas.SQLQueryDataset
   credentials: db_credentials
+  # Current season only: downstream nodes index gameweeks by `round` alone.
+  # Every join and window is keyed on season too, because player and team IDs
+  # are reassigned each season.
   sql: |
+    WITH current_season AS (SELECT MAX(season) AS season FROM players_hist)
     SELECT
+        ph.season,
         ph.player_id,
         p.player_name,
         p.web_name,
@@ -117,7 +207,7 @@ players_hist_merged:
         ph.round,
         ph.minutes AS round_minutes,
         ph.total_points AS round_points,
-        ph.value/10 AS transfer_cost,
+        ph.value / 10.0 AS transfer_cost,  -- 10.0 not 10: integer division truncated £5.5m to 5
         ph.transfers_balance,
         ph.selected,
         ph.transfers_in,
@@ -127,23 +217,23 @@ players_hist_merged:
         pos.position_name,
         pos.singular_name_short AS position_name_abbr,
 
-        LEAD(ph.total_points) 
-        OVER (PARTITION BY ph.player_id ORDER BY ph.round) 
+        LEAD(ph.total_points)
+        OVER (PARTITION BY ph.season, ph.player_id ORDER BY ph.round)
         AS next_week_round_points,
 
-        LEAD(ph.minutes) 
-        OVER (PARTITION BY ph.player_id ORDER BY ph.round) 
+        LEAD(ph.minutes)
+        OVER (PARTITION BY ph.season, ph.player_id ORDER BY ph.round)
         AS next_week_round_minutes,
 
-        -- cumulative sums per player
-        SUM(ph.minutes) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_minutes,
-        SUM(ph.total_points) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_points,
-        SUM(ph.ict_index) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_ict_index,
-        SUM(ph.transfers_in) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_transfers_in,
-        SUM(ph.transfers_out) OVER (PARTITION BY ph.player_id ORDER BY ph.round) AS cumsum_transfers_out,
+        -- cumulative sums per player within the season
+        SUM(ph.minutes) OVER (PARTITION BY ph.season, ph.player_id ORDER BY ph.round) AS cumsum_minutes,
+        SUM(ph.total_points) OVER (PARTITION BY ph.season, ph.player_id ORDER BY ph.round) AS cumsum_points,
+        SUM(ph.ict_index) OVER (PARTITION BY ph.season, ph.player_id ORDER BY ph.round) AS cumsum_ict_index,
+        SUM(ph.transfers_in) OVER (PARTITION BY ph.season, ph.player_id ORDER BY ph.round) AS cumsum_transfers_in,
+        SUM(ph.transfers_out) OVER (PARTITION BY ph.season, ph.player_id ORDER BY ph.round) AS cumsum_transfers_out,
 
         -- next-week fixture info
-        CASE 
+        CASE
             WHEN ph.team_id = nf.team_h THEN 1
             WHEN ph.team_id = nf.team_a THEN 0
         END AS next_week_is_home,
@@ -151,44 +241,38 @@ players_hist_merged:
         opp_team.team_name AS next_week_opponent_team_name,
 
         COUNT(nf.id) OVER (
-        PARTITION BY ph.player_id, ph.round
+        PARTITION BY ph.season, ph.player_id, ph.round
         ) AS next_week_fixture_count,
 
-        CASE 
+        CASE
             WHEN COUNT(nf.id) OVER (
-                PARTITION BY ph.player_id, ph.round
+                PARTITION BY ph.season, ph.player_id, ph.round
             ) > 1 THEN 1
             ELSE 0
         END AS next_week_dgw
 
     FROM players_hist ph
-    LEFT JOIN players p ON ph.player_id = p.player_id
-    LEFT JOIN teams t ON ph.team_id = t.team_id
+    JOIN current_season cs ON ph.season = cs.season
+    LEFT JOIN players p ON ph.player_id = p.player_id AND ph.season = p.season
+    LEFT JOIN teams t ON ph.team_id = t.team_id AND ph.season = t.season
     LEFT JOIN positions pos ON ph.position_id = pos.position_id
 
     -- join fixtures for next week
     LEFT JOIN fixtures nf
         ON ph.round + 1 = nf.gameweek
+        AND ph.season = nf.season
         AND (ph.team_id = nf.team_h OR ph.team_id = nf.team_a)
 
     -- join teams table to get next week opponent name
     LEFT JOIN teams opp_team
-        ON opp_team.team_id = CASE 
+        ON opp_team.season = ph.season
+        AND opp_team.team_id = CASE
             WHEN ph.team_id = nf.team_h THEN nf.team_a
             WHEN ph.team_id = nf.team_a THEN nf.team_h
-        END 
+        END
 
     ORDER BY ph.player_id, ph.round;
 
-
-
-
-
-
-
-
-
-        
 
 current_team:
   type: pandas.SQLQueryDataset
@@ -215,9 +299,11 @@ current_team:
     p.second_name,
     p.points_per_game,
     pos.position_name,
-    pos.singular_name_short AS position_name_abbr,
+    pos.singular_name_short AS position_name_abbr
 
     FROM my_current_team ct
-    LEFT JOIN players p ON p.player_id = ct.player_id
+    LEFT JOIN players p
+        ON p.player_id = ct.player_id
+        AND p.season = (SELECT MAX(season) FROM players)
     LEFT JOIN positions pos ON ct.position_id = pos.position_id
  

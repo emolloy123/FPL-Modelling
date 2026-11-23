@@ -24,12 +24,14 @@ def process_players_data(client) -> pd.DataFrame:
     players['now_cost'] = players['now_cost']/10
 
     players['points_per_game'] = players['points_per_game'].astype(float)
+    players['season'] = client.get_season()
 
     return players
 
 def process_teams_data(client) -> pd.DataFrame:
     """Extract and clean teams data"""
     teams = client.get_teams()
+    teams['season'] = client.get_season()
     return teams.rename(columns={'id': 'team_id', 'name': 'team_name'})
 
 def process_positions_data(client) -> pd.DataFrame:
